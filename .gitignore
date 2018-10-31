@@ -1,5 +1,5 @@
-*.app
-*.beam
-/ebin/
-/.eunit/
-_build
+/ebin
+/doc
+/.rebar
+/.eunit
+/_build
