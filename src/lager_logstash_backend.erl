@@ -98,13 +98,7 @@ handle_event(_Event, State) ->
     {ok, State}.
 
 handle_log(LagerMsg, #state{level = Level, config = Config, formatter = Formatter} = State) ->
-    Severity = lager_msg:severity(LagerMsg),
-    case lager_util:level_to_num(Severity) =< Level of
-        true ->
-            Payload = Formatter:format(LagerMsg, Config),
-            send_log(Payload, State);
-        false -> skip
-    end.
+    lager_util:is_loggable(LagerMsg, Level, ?MODULE) andalso send_log(Formatter:format(LagerMsg, Config), State).
 
 handle_info({'DOWN', Mon, _, _, shutdown}, #state { monitor = Mon } = State) ->
     {ok, State};
