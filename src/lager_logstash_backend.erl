@@ -34,6 +34,7 @@
 -define(DEFAULT_LEVEL, info).
 -define(DEFAULT_OUTPUT, {tcp, "localhost", 5000}).
 -define(DEFAULT_ENCODER, jsx).
+-define(DEFAULT_FORMATTER, lager_logstash_json_formatter).
 -define(DEFAULT_TAG, undefined).
 
 -type output() :: tcp() | udp() | file().
@@ -48,7 +49,8 @@
           monitor :: reference() | undefined,
           level :: lager:log_level_number(),
           output :: output(),
-          config :: configuration()
+          config :: configuration(),
+          formatter = ?DEFAULT_FORMATTER :: module()
          }).
 
 init(Args) ->
@@ -65,10 +67,11 @@ init(Args) ->
                      #{ json_encoder => Encoder,
                         tag => T }
     end,
-
+    Formatter = arg(formatter, Args, ?DEFAULT_FORMATTER),
     {ok, create_worker(#state{
         output = Output,
         config = Config,
+        formatter = Formatter,
         level = LevelNumber }) }.
 
 arg(Name, Args, Default) ->
@@ -94,11 +97,11 @@ handle_event({log, Message}, State) ->
 handle_event(_Event, State) ->
     {ok, State}.
 
-handle_log(LagerMsg, #state{level = Level, config = Config} = State) ->
+handle_log(LagerMsg, #state{level = Level, config = Config, formatter = Formatter} = State) ->
     Severity = lager_msg:severity(LagerMsg),
     case lager_util:level_to_num(Severity) =< Level of
         true ->
-            Payload = lager_logstash_json_formatter:format(LagerMsg, Config),
+            Payload = Formatter:format(LagerMsg, Config),
             send_log(Payload, State);
         false -> skip
     end.
