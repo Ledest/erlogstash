@@ -45,7 +45,7 @@ convert_metadata(L) ->
     [do_convert_metadata(M) || M <- L].
 
 do_convert_metadata({Key, Value}) when is_tuple(Value) ->
-    {Key, iolist_to_binary(io_lib:format("~p", [Value]))};
+    {Key, unicode:characters_to_binary(io_lib:format("~p", [Value]))};
 do_convert_metadata(M) -> M.
 
 convert(Data) -> lists:foldl(fun convert/2, [], Data).
@@ -56,7 +56,7 @@ convert({pid, Pid}, Acc) when is_pid(Pid) ->
 convert({name, Pid}, Acc) when is_pid(Pid) ->
     [{name, list_to_binary(pid_to_list(Pid))} | Acc];
 convert({K, List}, Acc) when is_list(List) ->
-    [{K, iolist_to_binary(List)} | Acc];
+    [{K, unicode:characters_to_binary(List)} | Acc];
 convert({K, Atom}, Acc) when is_atom(Atom) ->
     [{K, atom_to_binary(Atom, latin1)} | Acc];
 convert(Else, Acc) -> [Else | Acc].
