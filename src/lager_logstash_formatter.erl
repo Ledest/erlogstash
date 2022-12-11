@@ -45,7 +45,7 @@ convert_metadata(L) ->
     [do_convert_metadata(M) || M <- L].
 
 do_convert_metadata({Key, Value}) when is_tuple(Value) ->
-    {Key, unicode:characters_to_binary(io_lib:format("~p", [Value]))};
+    {Key, unicode:characters_to_binary(io_lib:write(Value))};
 do_convert_metadata(M) -> M.
 
 convert(Data) -> lists:foldl(fun convert/2, [], Data).
