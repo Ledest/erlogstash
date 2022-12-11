@@ -67,7 +67,13 @@ init(Args) ->
                      #{ json_encoder => Encoder,
                         tag => T }
     end,
-    Formatter = arg(formatter, Args, ?DEFAULT_FORMATTER),
+    Formatter = case arg(formatter, Args, ?DEFAULT_FORMATTER) of
+                    ?DEFAULT_FORMATTER ->
+                        true = lists:member(Encoder, [jsone, jsx, jiffy, msgpack, ?DEFAULT_ENCODER]),
+                        {ok, _} = application:ensure_all_started(Encoder),
+                        ?DEFAULT_FORMATTER;
+                    F -> F
+                end,
     {ok, create_worker(#state{
         output = Output,
         config = Config,
