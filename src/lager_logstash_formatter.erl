@@ -19,7 +19,7 @@
 %% IN THE SOFTWARE.
 
 %% @author Krzysztof Rutka <krzysztof.rutka@gmail.com>
--module(lager_logstash_json_formatter).
+-module(lager_logstash_formatter).
 
 -export([format/2]).
 

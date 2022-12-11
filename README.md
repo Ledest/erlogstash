@@ -2,7 +2,7 @@
 
 [Lager][lager] backend for sending logs to [Logstash][logstash].
 
-Includes `lager_logstash_json_formatter` which can be used with other
+Includes `lager_logstash_formatter` which can be used with other
 `lager` backends.
 
 ## Configuration
@@ -58,7 +58,7 @@ Here's how you would use the included JSON formatter with the
  [
   {file, "log/lager_logstash.log"},
   {level, info},
-  {formatter, lager_logstash_json_formatter},
+  {formatter, lager_logstash_formatter},
   {formatter_config, [{json_encoder, jsx}]},
   {size, 10485760},
   {date, "$D0"},

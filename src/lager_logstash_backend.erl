@@ -34,7 +34,7 @@
 -define(DEFAULT_LEVEL, info).
 -define(DEFAULT_OUTPUT, {tcp, "localhost", 5000}).
 -define(DEFAULT_ENCODER, jsx).
--define(DEFAULT_FORMATTER, lager_logstash_json_formatter).
+-define(DEFAULT_FORMATTER, lager_logstash_formatter).
 -define(DEFAULT_TAG, undefined).
 
 -type output() :: tcp() | udp() | file().
