@@ -61,6 +61,6 @@ convert({K, Atom}, Acc) when is_atom(Atom) ->
     [{K, atom_to_binary(Atom, latin1)} | Acc];
 convert(Else, Acc) -> [Else | Acc].
 
-encode(jsx, Data) -> [jsx:encode(Data), $\n];
+encode(J, Data) when J =:= jsx; J =:= jsone -> [J:encode(Data), $\n];
 encode(jiffy, Data) -> [jiffy:encode({Data}), $\n];
 encode(msgpack, Data) -> msgpack:pack(Data, [{pack_str, none}, {map_format, jsx}]).
