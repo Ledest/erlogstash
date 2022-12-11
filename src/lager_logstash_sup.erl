@@ -43,8 +43,7 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+start_link() -> supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -64,21 +63,9 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    RestartStrategy = simple_one_for_one,
-    MaxRestarts = 50,
-    MaxSecondsBetweenRestarts = 3600,
-
-    SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
-
-    Restart = temporary,
-    Shutdown = 2000,
-    Type = worker,
-
-    AChild = {lager_logstash_worker, {lager_logstash_worker, start_link, []},
-              Restart, Shutdown, Type, [lager_logstash_worker]},
-
-    {ok, {SupFlags, [AChild]}}.
+    {ok, {{simple_one_for_one, 50, 3600},
+          [{lager_logstash_worker, {lager_logstash_worker, start_link, []}, temporary, 2000, worker,
+            [lager_logstash_worker]}]}}.
 
 %% @private
-start_worker(Output) ->
-    supervisor:start_child(?SERVER, [Output]).
+start_worker(Output) -> supervisor:start_child(?SERVER, [Output]).
