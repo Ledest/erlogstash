@@ -3,10 +3,4 @@
   {vsn, "0.3.0"},
   {registered,[]},
   {mod, {lager_logstash_app, []}},
-  {applications, [
-  	kernel,
-         stdlib,
-         
-         jsx,
-         msgpack
-  ]}]}.
+  {applications, [kernel, stdlib]}]}.
