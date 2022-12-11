@@ -37,7 +37,7 @@ format(LagerMsg, #{ json_encoder := Encoder, tag := T }) ->
         {level, Level},
         {'@timestamp', Timestamp},
         {message, Message} | convert_metadata(Metadata)],
-    [encode(Encoder, convert(Tags ++ Data)), $\n].
+    encode(Encoder, convert(Tags ++ Data)).
 
 timestamp({Date, Time}) -> [Date, $T, Time].
 
@@ -61,6 +61,6 @@ convert({K, Atom}, Acc) when is_atom(Atom) ->
     [{K, atom_to_binary(Atom, latin1)} | Acc];
 convert(Else, Acc) -> [Else | Acc].
 
-encode(jsx, Data)   -> jsx:encode(Data);
-encode(jiffy, Data) -> jiffy:encode({Data});
+encode(jsx, Data) -> [jsx:encode(Data), $\n];
+encode(jiffy, Data) -> [jiffy:encode({Data}), $\n];
 encode(msgpack, Data) -> msgpack:pack(Data, [{pack_str, none}, {map_format, jsx}]).
