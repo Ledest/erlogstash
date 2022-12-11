@@ -23,7 +23,7 @@
 
 -export([format/2]).
 
-format(LagerMsg, #{ json_encoder := Encoder, tag := T }) ->
+format(LagerMsg, #{encoder := Encoder, tag := T}) ->
     Level = lager_msg:severity(LagerMsg),
     Timestamp = timestamp(lager_msg:datetime(LagerMsg)),
     Message = lager_msg:message(LagerMsg),

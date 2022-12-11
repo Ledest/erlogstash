@@ -58,15 +58,8 @@ init(Args) ->
     Level = arg(level, Args, ?DEFAULT_LEVEL),
     LevelNumber = lager_util:level_to_num(Level),
     Output = arg(output, Args, ?DEFAULT_OUTPUT),
-    Encoder = arg(json_encoder, Args, ?DEFAULT_ENCODER),
-    Config = case read_tag(arg(tag, Args, ?DEFAULT_TAG)) of
-                 undefined ->
-                     #{ json_encoder => Encoder,
-                        tag => undefined };
-                 T ->
-                     #{ json_encoder => Encoder,
-                        tag => T }
-    end,
+    Encoder = arg(encoder, Args, ?DEFAULT_ENCODER),
+    Config = #{encoder => Encoder, tag => read_tag(arg(tag, Args, ?DEFAULT_TAG))},
     Formatter = case arg(formatter, Args, ?DEFAULT_FORMATTER) of
                     ?DEFAULT_FORMATTER ->
                         true = lists:member(Encoder, [jsone, jsx, jiffy, msgpack, ?DEFAULT_ENCODER]),

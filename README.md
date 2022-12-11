@@ -34,8 +34,7 @@ And finally, configure `lager` app with something like this:
        {output, {tcp, "localhost", 5000}},
        %% {output, {udp, "localhost", 5000}},
        %% {output, {file, "/var/log/lager_logstash.log"}},
-       {format, json},
-       {json_encoder, jsx}
+       {encoder, jsx}
       ]}
     ]}
   ]}
@@ -59,7 +58,7 @@ Here's how you would use the included JSON formatter with the
   {file, "log/lager_logstash.log"},
   {level, info},
   {formatter, lager_logstash_formatter},
-  {formatter_config, [{json_encoder, jsx}]},
+  {formatter_config, [{encoder, jsx}]},
   {size, 10485760},
   {date, "$D0"},
   {count, 5}
