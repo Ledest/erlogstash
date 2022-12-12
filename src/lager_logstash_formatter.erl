@@ -25,7 +25,7 @@
 
 format(LagerMsg, #{encoder := Encoder, tag := T}) ->
     Level = lager_msg:severity(LagerMsg),
-    Timestamp = timestamp(lager_msg:datetime(LagerMsg)),
+    Timestamp = timestamp(lager_msg:timestamp(LagerMsg)),
     Message = lager_msg:message(LagerMsg),
     Metadata = lager_msg:metadata(LagerMsg),
     Tags = case T of
@@ -39,7 +39,8 @@ format(LagerMsg, #{encoder := Encoder, tag := T}) ->
         {message, Message} | convert_metadata(Metadata)],
     encode(Encoder, convert(Tags ++ Data)).
 
-timestamp({Date, Time}) -> [Date, $T, Time].
+timestamp(U) when is_integer(U) -> calendar:system_time_to_rfc3339(U, [{unit, microsecond}, {offset, "Z"}]);
+timestamp({M, S, U}) -> timestamp(M * (1000000 * 1000000) + S * 1000000 + U).
 
 convert_metadata(L) ->
     [do_convert_metadata(M) || M <- L].
