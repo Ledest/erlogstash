@@ -46,8 +46,7 @@
 %%      StartArgs = term()
 %% @end
 %%--------------------------------------------------------------------
-start(_StartType, _StartArgs) ->
-    lager_logstash_sup:start_link().
+start(_StartType, _StartArgs) -> lager_logstash_sup:start_link().
 
 %%--------------------------------------------------------------------
 %% @private
@@ -59,8 +58,7 @@ start(_StartType, _StartArgs) ->
 %% @spec stop(State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-stop(_State) ->
-    ok.
+stop(_State) -> ok.
 
 %%%===================================================================
 %%% Internal functions
