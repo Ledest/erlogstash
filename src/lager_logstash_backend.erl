@@ -33,7 +33,7 @@
 
 -define(DEFAULT_LEVEL, info).
 -define(DEFAULT_OUTPUT, {tcp, "localhost", 5000}).
--define(DEFAULT_ENCODER, jsx).
+-define(DEFAULT_ENCODER, jsone).
 -define(DEFAULT_FORMATTER, lager_logstash_formatter).
 -define(DEFAULT_TAG, undefined).
 
@@ -44,107 +44,79 @@
 -type file() :: {file, string()}.
 -type configuration() :: #{ atom() => term() }.
 
--record(state, {
-          worker :: pid() | undefined,
-          monitor :: reference() | undefined,
-          level :: lager:log_level_number(),
-          output :: output(),
-          config :: configuration(),
-          formatter = ?DEFAULT_FORMATTER :: module()
-         }).
+-record(state, {worker :: pid() | undefined,
+                monitor :: reference() | undefined,
+                level :: lager:log_level_number(),
+                output :: output(),
+                config :: configuration(),
+                formatter = ?DEFAULT_FORMATTER :: module()}).
 
 init(Args) ->
     {ok, _} = application:ensure_all_started(lager_logstash),
-    Level = arg(level, Args, ?DEFAULT_LEVEL),
-    LevelNumber = lager_util:level_to_num(Level),
-    Output = arg(output, Args, ?DEFAULT_OUTPUT),
     Encoder = arg(encoder, Args, ?DEFAULT_ENCODER),
-    Config = #{encoder => Encoder, tag => read_tag(arg(tag, Args, ?DEFAULT_TAG))},
-    Formatter = case arg(formatter, Args, ?DEFAULT_FORMATTER) of
-                    ?DEFAULT_FORMATTER ->
-                        true = lists:member(Encoder, [jsone, jsx, jiffy, msgpack, ?DEFAULT_ENCODER]),
-                        {ok, _} = application:ensure_all_started(Encoder),
-                        ?DEFAULT_FORMATTER;
-                    F -> F
-                end,
-    {ok, create_worker(#state{
-        output = Output,
-        config = Config,
-        formatter = Formatter,
-        level = LevelNumber }) }.
+    {ok, create_worker(#state{output = arg(output, Args, ?DEFAULT_OUTPUT),
+                              config = #{encoder => Encoder, tag => read_tag(arg(tag, Args, ?DEFAULT_TAG))},
+                              formatter = case arg(formatter, Args, ?DEFAULT_FORMATTER) of
+                                              ?DEFAULT_FORMATTER ->
+                                                  true = lists:member(Encoder,
+                                                                      [jsone, jsx, jiffy, msgpack, ?DEFAULT_ENCODER]),
+                                                  {ok, _} = application:ensure_all_started(Encoder),
+                                                  ?DEFAULT_FORMATTER;
+                                              F -> F
+                                          end,
+                              level = lager_util:level_to_num(arg(level, Args, ?DEFAULT_LEVEL))})}.
 
 arg(Name, Args, Default) ->
     case lists:keyfind(Name, 1, Args) of
-        {Name, Value} -> Value;
-        false         -> Default
+        {_, Value} -> Value;
+        false -> Default
     end.
 
-handle_call({set_loglevel, Level}, State) ->
-    LevelNumber = lager_util:level_to_num(Level),
-    {ok, ok, State#state{level = LevelNumber}};
-handle_call(get_loglevel, #state{level = LevelNumber} = State) ->
-    Level = lager_util:num_to_level(LevelNumber),
-    {ok, Level, State};
-handle_call(_Request, State) ->
-    {ok, ok, State}.
+handle_call({set_loglevel, Level}, State) -> {ok, ok, State#state{level = lager_util:level_to_num(Level)}};
+handle_call(get_loglevel, #state{level = LevelNumber} = State) -> {ok, lager_util:num_to_level(LevelNumber), State};
+handle_call(_Request, State) -> {ok, ok, State}.
 
-handle_event({log, _}, #state{worker = undefined} = State) ->
-    {ok, State};
+handle_event({log, _}, #state{worker = undefined} = State) -> {ok, State};
 handle_event({log, Message}, State) ->
-    _ = handle_log(Message, State),
+    handle_log(Message, State),
     {ok, State};
-handle_event(_Event, State) ->
-    {ok, State}.
+handle_event(_Event, State) -> {ok, State}.
 
 handle_log(LagerMsg, #state{level = Level, config = Config, formatter = Formatter} = State) ->
     lager_util:is_loggable(LagerMsg, Level, ?MODULE) andalso send_log(Formatter:format(LagerMsg, Config), State).
 
-handle_info({'DOWN', Mon, _, _, shutdown}, #state { monitor = Mon } = State) ->
-    {ok, State};
-handle_info({'DOWN', Mon, _, _, {shutdown, _}}, #state { monitor = Mon } = State) ->
-    {ok, State};
-handle_info({'DOWN', Mon, _, _, _}, #state { monitor = Mon } = State) ->
-    {ok, create_worker(State)};
-handle_info(_Info, State) ->
-    {ok, State}.
+handle_info({'DOWN', Mon, _, _, shutdown}, #state {monitor = Mon} = State) -> {ok, State};
+handle_info({'DOWN', Mon, _, _, {shutdown, _}}, #state {monitor = Mon} = State) -> {ok, State};
+handle_info({'DOWN', Mon, _, _, _}, #state {monitor = Mon} = State) -> {ok, create_worker(State)};
+handle_info(_Info, State) -> {ok, State}.
 
-terminate(_Reason, #state{ monitor = Mon, worker = Pid }) ->
-    erlang:demonitor(Mon, [flush]),
-    lager_logstash_worker:stop(Pid),
-    ok.
+terminate(_Reason, #state{monitor = Mon, worker = Pid}) ->
+    demonitor(Mon, [flush]),
+    lager_logstash_worker:stop(Pid).
 
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 send_log(_Payload, #state{worker = undefined}) -> ok;
-send_log(Payload, #state{worker = Worker}) ->
-    gen_server:cast(Worker, {log, Payload}).
+send_log(Payload, #state{worker = Worker}) -> gen_server:cast(Worker, {log, Payload}).
 
 create_worker(#state { output = Output } = State) ->
     {ok, WorkerPid} = lager_logstash_sup:start_worker(Output),
-    Mon = erlang:monitor(process, WorkerPid),
-    State#state {
-        monitor = Mon,
-        worker = WorkerPid
-    }.
+    State#state{monitor = monitor(process, WorkerPid), worker = WorkerPid}.
 
 read_tag(undefined) -> undefined;
 read_tag(Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
-read_tag(L) when is_list(L) ->
-    valid_tag_list(L).
+read_tag(L) when is_list(L) -> valid_tag_list(L).
 
-valid_tag_list([]) -> [];
-valid_tag_list([{K, V} | KVs]) -> 
+valid_tag_list([{K, V}|KVs]) ->
     ok = valid_key(K),
     ok = valid_value(V),
-    [{K,V} | valid_tag_list(KVs)].
+    [{K, V}|valid_tag_list(KVs)];
+valid_tag_list([]) -> [].
 
-valid_key(A) when is_atom(A) -> ok;
-valid_key(B) when is_binary(B) -> ok.
+valid_key(K) when is_atom(K); is_binary(K) -> ok.
 
-valid_value(B) when is_binary(B) -> ok;
-valid_value(S) when is_list(S) -> is_string(S).
+valid_value(V) ->
+    true = is_binary(V) orelse is_string(V),
+    ok.
 
-is_string([]) -> ok;
-is_string([C|Cs]) when C >= 0 andalso C < 256 -> is_string(Cs).
-    
+is_string(S) -> is_list(S) andalso lists:all(fun(C) -> C >= 0 andalso C < 256 end, S).
