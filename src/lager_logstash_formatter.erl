@@ -23,44 +23,34 @@
 
 -export([format/2]).
 
-format(LagerMsg, #{encoder := Encoder, tag := T}) ->
-    Level = lager_msg:severity(LagerMsg),
-    Timestamp = timestamp(lager_msg:timestamp(LagerMsg)),
-    Message = lager_msg:message(LagerMsg),
-    Metadata = lager_msg:metadata(LagerMsg),
-    Tags = case T of
-       undefined -> [];
-       List -> List
-    end,
-    Data = [
-        {type, lager_logstash},
-        {level, Level},
-        {'@timestamp', Timestamp},
-        {message, Message} | convert_metadata(Metadata)],
-    encode(Encoder, convert(Tags ++ Data)).
+format(Msg, #{encoder := Encoder, tag := undefined}) -> format(Msg, Encoder, []);
+format(Msg, #{encoder := Encoder, tag := Tags}) -> format(Msg, Encoder, Tags).
+
+format(Msg, Encoder, Tags) ->
+    encode(Encoder,
+           convert(Tags ++
+                   [{type, lager_logstash},
+                    {level, lager_msg:severity(Msg)},
+                    {'@timestamp', timestamp(lager_msg:timestamp(Msg))},
+                    {message, lager_msg:message(Msg)}] ++
+                   convert_metadata(lager_msg:metadata(Msg)))).
 
 timestamp(U) when is_integer(U) -> calendar:system_time_to_rfc3339(U, [{unit, microsecond}, {offset, "Z"}]);
 timestamp({M, S, U}) -> timestamp(M * (1000000 * 1000000) + S * 1000000 + U).
 
 convert_metadata(L) ->
-    [do_convert_metadata(M) || M <- L].
+    lists:map(fun({Key, Value}) when is_tuple(Value) -> {Key, unicode:characters_to_binary(io_lib:write(Value))};
+                 (M) -> M
+              end, L).
 
-do_convert_metadata({Key, Value}) when is_tuple(Value) ->
-    {Key, unicode:characters_to_binary(io_lib:write(Value))};
-do_convert_metadata(M) -> M.
-
-convert(Data) -> lists:foldl(fun convert/2, [], Data).
-
-convert({_, undefined}, Acc) -> Acc;
-convert({pid, Pid}, Acc) when is_pid(Pid) ->
-    [{pid, list_to_binary(pid_to_list(Pid))} | Acc];
-convert({name, Pid}, Acc) when is_pid(Pid) ->
-    [{name, list_to_binary(pid_to_list(Pid))} | Acc];
-convert({K, List}, Acc) when is_list(List) ->
-    [{K, unicode:characters_to_binary(List)} | Acc];
-convert({K, Atom}, Acc) when is_atom(Atom) ->
-    [{K, atom_to_binary(Atom, latin1)} | Acc];
-convert(Else, Acc) -> [Else | Acc].
+convert(Data) ->
+    lists:filtermap(fun({_, undefined}) -> false;
+                       ({K, V}) when is_atom(V) -> {true, {K, atom_to_binary(V, latin1)}};
+                       ({K, Pid}) when K =:= pid orelse K =:= name, is_pid(Pid) ->
+                        {true, {K, list_to_binary(pid_to_list(Pid))}};
+                       ({K, V}) when is_list(V) -> {true, {K, unicode:characters_to_binary(V)}};
+                       (_) -> true
+                    end, Data).
 
 encode(J, Data) when J =:= jsx; J =:= jsone -> [J:encode(Data), $\n];
 encode(jiffy, Data) -> [jiffy:encode({Data}), $\n];
