@@ -28,25 +28,18 @@
 -export([start_link/1, stop/1]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-         terminate/2, code_change/3]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE).
--define(DEFAULT_TIMEOUT, 5000).
--define(RECONNECT_TIMEOUT, 15*1000).
+-define(DEFAULT_TIMEOUT, timer:seconds(5)).
+-define(RECONNECT_TIMEOUT, timer:seconds(15)).
 
 -type handle() :: gen_tcp:socket() | gen_udp:socket() | file:fd().
+-type config() :: {tcp, inet:hostname(), inet:port_number(), pos_integer()} |
+                  {tcp | udp, inet:hostname(), inet:port_number()} |
+                  {file, string()}.
 
--type config() ::
-      {tcp, inet:hostname(), inet:port_number()}
-    | {tcp, inet:hostname(), inet:port_number(), pos_integer()}
-    | {udp, inet:hostname(), inet:port_number()}
-    | {file, string()}.
-
--record(state, {
-          handle :: handle() | undefined,
-          config :: config()
-        }).
+-record(state, {handle :: handle() | undefined, config :: config()}).
 
 %%%===================================================================
 %%% API
@@ -59,11 +52,9 @@
 %% @spec start_link(Output) -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Output) ->
-    gen_server:start_link(?MODULE, [Output], []).
+start_link(Output) -> gen_server:start_link(?MODULE, [Output], []).
 
-stop(Pid) ->
-    gen_server:cast(Pid, stop).
+stop(Pid) -> gen_server:cast(Pid, stop).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -83,7 +74,7 @@ stop(Pid) ->
 init([Output]) ->
     self() ! {reconnect, Output},
     {ok, reconnect_buf_init()}.
-    
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -98,8 +89,7 @@ init([Output]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(_Request, _From, State) ->
-    {reply, ok, State}.
+handle_call(_Request, _From, State) -> {reply, ok, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -111,15 +101,12 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast(stop, State) ->
-    {stop, normal, State};
-handle_cast({log, Payload}, {initializing, _} = State) ->
-    {noreply, reconnect_buf_queue(Payload, State)};
+handle_cast(stop, State) -> {stop, normal, State};
+handle_cast({log, Payload}, {initializing, _} = State) -> {noreply, reconnect_buf_queue(Payload, State)};
 handle_cast({log, Payload}, State) ->
     ok = send_log(Payload, State),
     {noreply, State};
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+handle_cast(_Msg, State) -> {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -132,36 +119,31 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({reconnect, Output}, {initializing, _} = BufState) ->
-    case connect(Output) of
-        {ok, State} ->
-            {noreply, reconnect_buf_drain(BufState, State)};
-        {error, nxdomain} ->
-            %% Keep a deliberately long timeout here to avoid thundering herds
-            %% against the DNS service
-            timer:send_after(60*1000, self(), {reconnect, Output}),
-            {noreply, BufState};
-
-        {error, Reason} when Reason == timeout;
-                             Reason == econnrefused ->
-            timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Output}),
-            {noreply, BufState};
-        {error, Reason} ->
-            %% Unknown errors should output warnings to us
-            error_logger:info_msg("Trying to connect to logstash had error reason ~p", [Reason]),
-            timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Output}),
-            {noreply, BufState}
-    end;
+    {noreply,
+     case connect(Output) of
+         {ok, State} -> reconnect_buf_drain(BufState, State);
+         {error, nxdomain} ->
+             %% Keep a deliberately long timeout here to avoid thundering herds
+             %% against the DNS service
+             timer:send_after(timer:minutes(1), self(), {reconnect, Output}),
+             BufState;
+         {error, Reason} ->
+             %% Unknown errors should output warnings to us
+             Reason =/= timeout andalso Reason =/= econnrefused andalso
+                 error_logger:info_msg("Trying to connect to logstash had error reason ~p", [Reason]),
+             timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Output}),
+             BufState
+     end};
 handle_info({tcp, S, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
     {noreply, State};
-handle_info({tcp_closed, S}, #state { config = Conf, handle = S }) ->
+handle_info({tcp_closed, S}, #state {config = Conf, handle = S}) ->
     timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Conf}),
     {noreply, reconnect_buf_init()};
 handle_info({udp, S, _IP, _Port, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
     {noreply, State};
-handle_info(_Info, State) ->
-    {noreply, State}.
+handle_info(_Info, State) -> {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -174,8 +156,7 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, _State) ->
-    ok.
+terminate(_Reason, _State) -> ok.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -185,45 +166,33 @@ terminate(_Reason, _State) ->
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @end
 %%--------------------------------------------------------------------
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-connect({tcp, Host, Port}) ->
-    connect({tcp, Host, Port, ?DEFAULT_TIMEOUT});
+connect({tcp, Host, Port}) -> connect({tcp, Host, Port, ?DEFAULT_TIMEOUT});
 connect({tcp, Host, Port, Timeout} = Conf) ->
-    Opts = [binary, {active, once}, {keepalive, true}],
-    case gen_tcp:connect(Host, Port, Opts, Timeout) of
-        {ok, Socket} ->
-            {ok, #state{ config = Conf, handle = Socket }};
-        {error, Reason}   ->
-            {error, Reason}
+    case gen_tcp:connect(Host, Port, [binary, {active, once}, {keepalive, true}], Timeout) of
+        {ok, Socket} -> {ok, #state{config = Conf, handle = Socket}};
+        {error, _} = R -> R
     end;
 connect({udp, _, _} = Conf) ->
-    Opts = [binary],
-    case gen_udp:open(0, Opts) of
-        {ok, Socket} ->
-            {ok, #state{ config = Conf, handle = Socket }};
-        {error, Reason} ->
-            {error, Reason}
+    case gen_udp:open(0, [binary]) of
+        {ok, Socket} -> {ok, #state{config = Conf, handle = Socket}};
+        {error, _} = R -> R
     end;
 connect({file, Path} = Conf) ->
     case file:open(Path, [append]) of
-        {ok, Fd}   ->
-            {ok, #state{ config = Conf, handle = Fd}};
-        {error, Reason} ->
-            {error, Reason}
+        {ok, Fd} -> {ok, #state{config = Conf, handle = Fd}};
+        {error, _} = R -> R
     end.
 
-send_log(Payload, #state { config = {tcp, _, _, _}, handle = Socket}) ->
-    ok = gen_tcp:send(Socket, Payload);
-send_log(Payload, #state { config = {udp, Host, Port}, handle = Socket}) ->
+send_log(Payload, #state {config = {tcp, _, _, _}, handle = Socket}) -> ok = gen_tcp:send(Socket, Payload);
+send_log(Payload, #state {config = {udp, Host, Port}, handle = Socket}) ->
     ok = gen_udp:send(Socket, Host, Port, Payload);
-send_log(Payload, #state { config = {file, _}, handle = Fd}) ->
-    ok = file:write(Fd, Payload).
+send_log(Payload, #state {config = {file, _}, handle = Fd}) -> ok = file:write(Fd, Payload).
 
 %% -- Reconnect Buffering ---------------------------------------
 reconnect_buf_init() -> {initializing, {0, []}}.
@@ -231,14 +200,11 @@ reconnect_buf_init() -> {initializing, {0, []}}.
 reconnect_buf_queue(Payload, {initializing, {N, _Msgs}}) when N > 500 ->
     %% Buffer to big, cycle!
     {initializing, {1, [Payload]}};
-reconnect_buf_queue(Payload, {initializing, {N, Msgs}}) ->
-    {initializing, {N+1, [Payload | Msgs]}}.
+reconnect_buf_queue(Payload, {initializing, {N, Msgs}}) -> {initializing, {N + 1, [Payload|Msgs]}}.
 
-reconnect_buf_drain({initializing, {_N, Ps}}, State) ->
-    drain(lists:reverse(Ps), State).
-    
-drain([], State) -> State;
-drain([P | Ps], State) ->
-    send_log(P, State),
-    drain(Ps, State).
+reconnect_buf_drain({initializing, {_N, Ps}}, State) -> drain(Ps, State).
 
+drain([P|Ps], State) ->
+    drain(Ps, State),
+    send_log(P, State);
+drain([], _) -> ok.
