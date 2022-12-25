@@ -19,9 +19,16 @@
 %% IN THE SOFTWARE.
 
 %% @author Chap Lovejoy <chaplovejoy@gmail.com>
--module(lager_logstash_app).
+-module(erlogstash).
 
+-behaviour(supervisor).
 -behaviour(application).
+
+%% API
+-export([send/2, start_link/0, start_worker/1, start_worker/2]).
+
+%% Supervisor callbacks
+-export([init/1]).
 
 %% Application callbacks
 -export([start/2, stop/1]).
@@ -46,7 +53,13 @@
 %%      StartArgs = term()
 %% @end
 %%--------------------------------------------------------------------
-start(_StartType, _StartArgs) -> lager_logstash_sup:start_link().
+start(_StartType, _StartArgs) ->
+    case start_link() of
+        {ok, _} = R ->
+            lists:foreach(fun({N, O}) -> start_worker(N, O) end, application:get_env(erlogstash, outputs, [])),
+            R;
+        R -> R
+    end.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -59,6 +72,56 @@ start(_StartType, _StartArgs) -> lager_logstash_sup:start_link().
 %% @end
 %%--------------------------------------------------------------------
 stop(_State) -> ok.
+
+-define(SERVER, ?MODULE).
+
+%%%===================================================================
+%%% API functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Starts the supervisor
+%%
+%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
+%% @end
+%%--------------------------------------------------------------------
+start_link() -> supervisor:start_link({local, erlogstash_sup}, ?MODULE, []).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Send payload to logstash
+%%
+%% @spec send(Worker, Payload) -> ok
+%% @end
+%%--------------------------------------------------------------------
+send(Worker, Payload) -> gen_server:cast(Worker, {log, Payload}).
+
+%%%===================================================================
+%%% Supervisor callbacks
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Whenever a supervisor is started using supervisor:start_link/[2,3],
+%% this function is called by the new process to find out about
+%% restart strategy, maximum restart frequency and child
+%% specifications.
+%%
+%% @spec init(Args) -> {ok, {SupFlags, [ChildSpec]}} |
+%%                     ignore |
+%%                     {error, Reason}
+%% @end
+%%--------------------------------------------------------------------
+init([]) ->
+    {ok, {{simple_one_for_one, 50, 3600},
+          [{erlogstash_worker, {erlogstash_worker, start_link, []}, temporary, 2000, worker, [erlogstash_worker]}]}}.
+
+%% @private
+start_worker(Output) -> supervisor:start_child(erlogstash_sup, [Output]).
+
+start_worker(Name, Output) -> supervisor:start_child(erlogstash_sup, [Name, Output]).
 
 %%%===================================================================
 %%% Internal functions

@@ -1,0 +1,6 @@
+{application, erlogstash,
+ [{description, "Logstash client"},
+  {vsn, "0.4.0"},
+  {registered,[]},
+  {mod, {erlogstash, []}},
+  {applications, [kernel, stdlib]}]}.

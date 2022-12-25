@@ -20,17 +20,16 @@
 
 %% @author Chap Lovejoy <chaplovejoy@gmail.com>
 
--module(lager_logstash_worker).
+-module(erlogstash_worker).
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/1, stop/1]).
+-export([start_link/1, start_link/2, stop/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--define(SERVER, ?MODULE).
 -define(DEFAULT_TIMEOUT, timer:seconds(5)).
 -define(RECONNECT_TIMEOUT, timer:seconds(15)).
 
@@ -52,7 +51,12 @@
 %% @spec start_link(Output) -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Output) -> gen_server:start_link(?MODULE, [Output], []).
+start_link(Output) -> gen_server:start_link({local, ?MODULE}, ?MODULE, [Output], []).
+
+start_link(undefined, Output) -> gen_server:start_link(?MODULE, [Output], []);
+start_link(Name, Output) when is_atom(Name) -> gen_server:start_link({local, Name}, ?MODULE, [Output], []);
+start_link({T, _} = Name, Output) when T =:= local; T =:= global -> gen_server:start_link(Name, ?MODULE, [Output], []);
+start_link({via, _, _} = Name, Output) -> gen_server:start_link(Name, ?MODULE, [Output], []).
 
 stop(Pid) -> gen_server:cast(Pid, stop).
 
@@ -189,10 +193,10 @@ connect({file, Path} = Conf) ->
         {error, _} = R -> R
     end.
 
-send_log(Payload, #state {config = {tcp, _, _, _}, handle = Socket}) -> ok = gen_tcp:send(Socket, Payload);
-send_log(Payload, #state {config = {udp, Host, Port}, handle = Socket}) ->
+send_log(Payload, #state{config = {tcp, _, _, _}, handle = Socket}) -> ok = gen_tcp:send(Socket, Payload);
+send_log(Payload, #state{config = {udp, Host, Port}, handle = Socket}) ->
     ok = gen_udp:send(Socket, Host, Port, Payload);
-send_log(Payload, #state {config = {file, _}, handle = Fd}) -> ok = file:write(Fd, Payload).
+send_log(Payload, #state{config = {file, _}, handle = Fd}) -> ok = file:write(Fd, Payload).
 
 %% -- Reconnect Buffering ---------------------------------------
 reconnect_buf_init() -> {initializing, {0, []}}.
@@ -207,4 +211,4 @@ reconnect_buf_drain({initializing, {_N, Ps}}, State) -> drain(Ps, State).
 drain([P|Ps], State) ->
     drain(Ps, State),
     send_log(P, State);
-drain([], _) -> ok.
+drain([], State) -> State.

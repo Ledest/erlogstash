@@ -1,31 +1,21 @@
-# lager_logstash 0.1.3 [![Build Status][travis_ci_image]][travis_ci]
+# erlogstash
 
-[Lager][lager] backend for sending logs to [Logstash][logstash].
-
-Includes `lager_logstash_formatter` which can be used with other
-`lager` backends.
+Application for sending logs to [Logstash][logstash].
 
 ## Configuration
 
-Add `lager_logstash` to your `rebar.config` deps:
+Add `erlogstash` to your `rebar.config` deps:
 
 ``` erlang
-{deps,
- [
-  {lager_logstash, "",
-   {git, "https://github.com/rpt/lager_logstash.git",
-    {tag, "0.1.3"}}}
- ]}.
+{deps, [
+    {erlogstash, {git, "https://github.com/Ledest/erlogstash.git", {branch, "master"}}}
+]}.
 ```
 
-Remember to also add `jsx` or `jiffy`, whichever you prefer.
-
-And finally, configure `lager` app with something like this:
+And finally, configure `erlogstash` app with something like this:
 
 ``` erlang
-[
- {lager,
-  [
+[{erlogstash, [
    {handlers,
     [
      {lager_logstash_backend,
@@ -37,61 +27,13 @@ And finally, configure `lager` app with something like this:
        {encoder, jsx}
       ]}
     ]}
-  ]}
+]}
 ].
 ```
 
 ## Features
 
   * outputs: `tcp`, `udp`, `file`
-  * formats: `json`
-  * json encoders: `jsx`, `jiffy`
+  * formats: `json`, `msgpack`
 
-## JSON formatter
-
-Here's how you would use the included JSON formatter with the
-`lager_file_backend`:
-
-``` erlang
-{lager_file_backend,
- [
-  {file, "log/lager_logstash.log"},
-  {level, info},
-  {formatter, lager_logstash_formatter},
-  {formatter_config, [{encoder, jsx}]},
-  {size, 10485760},
-  {date, "$D0"},
-  {count, 5}
- ]}
-```
-
-## TODOs
-
-  * reconnect
-  * other formats
-
-## Changelog
-
-#### 0.1.4
-
-  * Convert tuples in metadata to a binary before passing it to the
-    JSON encoder. This should solve a crash when processes are named
-    using via-tuples in a process registry like `gproc`.
-
-#### 0.1.3
-
-  * Small fixes
-
-#### 0.1.2
-
-  * Removes all release name/version logging code
-
-#### 0.1.1
-
-  * Adds `lager_logstash_json_formatter`
-
-
-[travis_ci]: https://travis-ci.org/rpt/lager_logstash
-[travis_ci_image]: https://travis-ci.org/rpt/lager_logstash.png
-[lager]: https://github.com/basho/lager
 [logstash]: http://logstash.net

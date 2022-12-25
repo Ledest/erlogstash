@@ -1,23 +1,7 @@
 case erlang:function_exported(rebar3, main, 1) of
     true -> CONFIG;
     false ->
-        case lists:keyfind(deps, 1, CONFIG) of
-            {_, [_|_] = D} ->
-                lists:keyreplace(deps, 1, CONFIG,
-                                 {deps,
-                                  lists:map(fun({lager, V}) when is_list(V) ->
-                                                {lager,
-                                                 {git, "https://github.com/erlang-lager/lager.git", {tag, "3.9.2"}}};
-                                               ({jsx, V}) when is_list(V) ->
-                                                {jsx,
-                                                 {git, "https://github.com/talentdeficit/jsx.git", {branch, "main"}}};
-                                               ({magpack, V}) when is_list(V) ->
-                                                {msgpack,
-                                                 {git, "https://github.com/msgpack/msgpack-erlang", {branch, "master"}}};
-                                               ({jsone, V}) when is_list(V) ->
-                                                {jsone, {git, "https://github.com/sile/jsone.git", {tag, "1.7.0"}}};
-                                               (V) -> V
-                                            end, D)});
-            _ -> CONFIG
-        end
+        lists:keyreplace(deps, 1, CONFIG,
+                         {deps, [{jsone, {git, "https://github.com/sile/jsone.git", {tag, "1.7.0"}}},
+                                 {msgpack, {git, "https://github.com/msgpack/msgpack-erlang", {branch, "master"}}}]})
 end.
