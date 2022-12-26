@@ -1,9 +1,15 @@
 -module(logger_erlogstash_h).
 
 %% logger callbacks
--export([log/2]).
+-export([adding_handler/1, log/2]).
 
 -define(DEFAULT_FORMAT, json).
+
+adding_handler(#{output := Output} = Config) ->
+    case erlogstash_worker:start(Output) of
+        {ok, P} -> {ok, Config#{worker => P}};
+        {error, _} = E -> E
+    end.
 
 log(LogEvent, #{formatter := {logger_formatter, _}} = Config) ->
     log(LogEvent, Config#{formatter => {logger_erlogstash_formatter, #{}}}, logger_erlogstash_formatter, #{});
@@ -12,4 +18,4 @@ log(LogEvent, #{formatter := M} = Config) -> log(LogEvent, Config#{formatter => 
 log(LogEvent, Config) ->
     log(LogEvent, Config#{formatter => {logger_erlogstash_formatter, #{}}}, logger_erlogstash_formatter, #{}).
 
-log(LogEvent, Config, Formatter, FConfig) -> erlogstash:send(erlogstash2, Formatter:format(LogEvent, FConfig)).
+log(LogEvent, #{worker := P}, Formatter, FConfig) -> erlogstash:send(P, Formatter:format(LogEvent, FConfig)).
