@@ -1,7 +1,7 @@
 -module(logger_erlogstash_h).
 
 %% logger callbacks
--export([adding_handler/1, log/2]).
+-export([adding_handler/1, removing_handler/1, log/2]).
 
 -define(DEFAULT_FORMAT, json).
 
@@ -10,6 +10,8 @@ adding_handler(#{output := Output} = Config) ->
         {ok, P} -> {ok, Config#{worker => P}};
         {error, _} = E -> E
     end.
+
+removing_handler(#{worker := P}) -> gen_server:cast(P, stop).
 
 log(LogEvent, #{formatter := {logger_formatter, _}} = Config) ->
     log(LogEvent, Config#{formatter => {logger_erlogstash_formatter, #{}}}, logger_erlogstash_formatter, #{});
