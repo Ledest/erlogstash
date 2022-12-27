@@ -25,7 +25,7 @@
 -behaviour(application).
 
 %% API
--export([send/2, start_link/0, start_worker/1, start_worker/2]).
+-export([send/2, start_link/0, start_worker/1, start_worker/2, stop_worker/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -119,11 +119,8 @@ init([]) ->
     {ok, {{simple_one_for_one, 50, 3600},
           [{erlogstash_worker, {erlogstash_worker, start_link, []}, temporary, 2000, worker, [erlogstash_worker]}]}}.
 
-%% @private
 start_worker(Output) -> supervisor:start_child(erlogstash_sup, [Output]).
 
 start_worker(Name, Output) -> supervisor:start_child(erlogstash_sup, [Name, Output]).
 
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
+stop_worker(Worker) -> gen_server:cast(Worker, stop).
