@@ -5,25 +5,20 @@
 
 adding_handler(#{id := N, output := Output} = Config) ->
     case erlogstash:start_worker(N, Output) of
-        {ok, _} -> {ok, Config};
+        {ok, _} -> {ok, config(Config)};
         {error, _} = E -> E
     end.
 
-removing_handler(#{id := N}) -> gen_server:cast(N, stop).
+removing_handler(#{id := N}) -> erlogstash:stop_worker(N).
 
-log(LogEvent, #{formatter := {logger_formatter, _}} = Config) ->
-    FC = config(#{}, Config),
-    log(LogEvent, Config#{formatter => {logger_erlogstash_formatter, FC}}, logger_erlogstash_formatter, FC);
-log(LogEvent, #{formatter := {M, C}} = Config) -> log(LogEvent, Config, M, config(C, Config));
-log(LogEvent, #{formatter := M} = Config) ->
-    FC = config(#{}, Config),
-    log(LogEvent, Config#{formatter => {M, FC}}, M, FC);
-log(LogEvent, Config) ->
-    FC = config(#{}, Config),
-    log(LogEvent, Config#{formatter => {logger_erlogstash_formatter, FC}}, logger_erlogstash_formatter, FC).
+log(LogEvent, #{id := N, formatter := {M, FC}}) -> erlogstash:send(N, M:format(LogEvent, FC)).
 
-log(LogEvent, #{id := N}, Formatter, FConfig) -> erlogstash:send(N, Formatter:format(LogEvent, FConfig)).
+config(#{formatter := {logger_formatter, _}} = Config) ->
+    Config#{formatter := {logger_erlogstash_formatter, fconfig(#{}, Config)}};
+config(#{formatter := {M, FConfig}} = Config) -> Config#{formatter := {M, fconfig(FConfig, Config)}};
+config(#{formatter := M} = Config) -> Config#{formatter := {M, fconfig(#{}, Config)}};
+config(Config) -> Config#{formatter => {logger_erlogstash_formatter, fconfig(#{}, Config)}}.
 
-config(#{format := _} = Config, _) -> Config;
-config(Config, #{format := F}) -> Config#{format => F};
-config(Config, _) -> Config.
+fconfig(#{format := _} = FConfig, _Config) -> FConfig;
+fconfig(FConfig, #{format := F} = _Config) -> FConfig#{format => F};
+fconfig(FConfig, _Config) -> FConfig.
