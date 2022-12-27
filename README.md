@@ -29,7 +29,7 @@ Or/and configure `logger`:
 
 ```erlang
 [
-    {logstash, [
+    {erlogstash, [
         {logger, [
             {handler, logstash1, logger_erlogstash_h, #{
                 output => {file, "erlogstash.log"},

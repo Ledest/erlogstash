@@ -57,7 +57,7 @@ start(_StartType, _StartArgs) ->
     case start_link() of
         {ok, _} = R ->
             lists:foreach(fun({N, O}) -> start_worker(N, O) end, application:get_env(erlogstash, outputs, [])),
-            ok = logger:add_handlers(logstash),
+            ok = logger:add_handlers(erlogstash),
             R;
         R -> R
     end.
