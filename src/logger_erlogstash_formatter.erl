@@ -3,10 +3,10 @@
 %% formatter callbacks
 -export([format/2]).
 
-format(#{level := Level, msg := Msg, meta := Meta} = LogEvent, Config) ->
-    io:fwrite("LogEvent: ~p~n", [LogEvent]),
-    io:fwrite("Message: ~ts~n", [msg(Msg, Meta)]),
-    encode(maps:get(format, Config, json),
+-define(DEFAULT_FORMAT, json).
+
+format(#{level := Level, msg := Msg, meta := Meta}, Config) ->
+    encode(maps:get(format, Config, ?DEFAULT_FORMAT),
            [{level, Level}, {message, unicode:characters_to_binary(msg(Msg, Meta))}|meta(Meta)]).
 
 msg({report, Report}, #{report_cb := Fun}) when is_function(Fun, 2) -> Fun(Report, #{single_line => true});
