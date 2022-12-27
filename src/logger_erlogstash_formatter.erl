@@ -1,9 +1,12 @@
 -module(logger_erlogstash_formatter).
 
 %% formatter callbacks
--export([format/2]).
+-export([check_config/1, format/2]).
 
 -define(DEFAULT_FORMAT, json).
+
+check_config(#{format := F}) when F =/= json, F =/= msgpack -> {error, {format, F}};
+check_config(_) -> ok.
 
 format(#{level := Level, msg := Msg, meta := Meta}, Config) ->
     encode(maps:get(format, Config, ?DEFAULT_FORMAT),
