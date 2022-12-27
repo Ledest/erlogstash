@@ -12,22 +12,31 @@ Add `erlogstash` to your `rebar.config` deps:
 ]}.
 ```
 
-And finally, configure `erlogstash` app with something like this:
+Configure `erlogstash` app with something like this:
 
 ``` erlang
-[{erlogstash, [
-   {handlers,
-    [
-     {lager_logstash_backend,
-      [
-       {level, info},
-       {output, {tcp, "localhost", 5000}},
-       %% {output, {udp, "localhost", 5000}},
-       %% {output, {file, "/var/log/lager_logstash.log"}},
-       {encoder, jsx}
-      ]}
+[
+    {erlogstash, [
+        {outputs, [
+            {erlogstash1, {tcp, {172,22,160,38}, 5000}},
+            {erlogstash2, {file, "erlogstash2.log"}}
+        ]}
     ]}
-]}
+].
+```
+
+Or/and configure `logger`:
+
+```erlang
+[
+    {logstash, [
+        {logger, [
+            {handler, logstash1, logger_erlogstash_h, #{
+                output => {file, "erlogstash.log"},
+                format => json
+            }}
+        ]}
+    ]}
 ].
 ```
 
