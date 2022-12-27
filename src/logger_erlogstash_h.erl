@@ -9,7 +9,7 @@ adding_handler(#{id := N, output := Output} = Config) ->
         {error, _} = E -> E
     end.
 
-removing_handler(#{worker := P}) -> gen_server:cast(P, stop).
+removing_handler(#{id := N}) -> gen_server:cast(N, stop).
 
 log(LogEvent, #{formatter := {logger_formatter, _}} = Config) ->
     FC = config(#{}, Config),
