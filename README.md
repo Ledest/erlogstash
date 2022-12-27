@@ -34,6 +34,13 @@ Or/and configure `logger`:
             {handler, logstash1, logger_erlogstash_h, #{
                 output => {file, "erlogstash.log"},
                 format => json
+            }},
+            {handler, logstash2, logger_erlogstash_h, #{
+                output => {tcp, {172,22,160,1}, 5000},
+                format => msgpack
+            }},
+            {handler, logstash2, logger_erlogstash_h, #{
+                output => {udp, {172,22,160,1}, 5000}
             }}
         ]}
     ]}
