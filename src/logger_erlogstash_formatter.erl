@@ -23,8 +23,8 @@ meta(time, V, A) ->
     [{'@timestamp', list_to_binary(calendar:system_time_to_rfc3339(V, [{unit, microsecond}, {offset, "Z"}]))}|A];
 meta(domain, V, A) -> [{domain, V}|A];
 meta(file, V, A) -> [{file, unicode:characters_to_binary(V)}|A];
-meta(mfa, {M, F, Arity}, A) -> [{module, M}, {function, F}, {arity, Arity}|A];
-meta(K, _, A) when K =:= error_logger; K =:= logger_formatter; K =:= report_cb -> A;
+meta(mfa, {M, F, Arity}, A) -> [{module, M}, {function, F}, {arity, Arity}, {mfa, mfa(M, F, Arity)}|A];
+meta(K, _, A) when K =:= error_logger; K =:= logger_formatter; K =:= report_cb; K =:= gl -> A;
 meta(K, undefined, A) -> [{K, null}|A];
 meta(K, P, A) when is_pid(P) -> [{K, list_to_binary(pid_to_list(P))}|A];
 meta(K, V, A) when is_number(V); is_atom(V); is_binary(V) -> [{K, V}|A];
@@ -34,6 +34,9 @@ meta(K, V, A) when is_list(V) ->
                                           _false -> io_lib:write(V)
                                       end)}|A];
 meta(K, V, A) -> [{K, unicode:characters_to_binary(io_lib:write(V))}|A].
+
+mfa(M, F, A) ->
+    <<(atom_to_binary(M, latin1))/binary, $:, (atom_to_binary(F, utf8))/binary, $/, (integer_to_binary(A))/binary>>.
 
 encode(json, Data) -> [jsone:encode(Data), $\n];
 encode(msgpack, Data) -> msgpack:pack(Data, [{pack_str, none}, {map_format, jsx}]).
