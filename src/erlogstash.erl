@@ -37,11 +37,12 @@
                   {tcp, inet:hostname()|inet:socket_address(), inet:port_number()} |
                   {tcp, inet:hostname()|inet:socket_address(), inet:port_number(), timeout()}.
 -type payload() :: iodata().
--export_type([output/0, payload/0]).
+-type worker() :: supervisor:sup_ref().
+-export_type([output/0, payload/0, worker/0]).
 
 %% API
 
--spec send(Worker::supervisor:sup_ref(), Payload::payload()) -> ok.
+-spec send(Worker::worker(), Payload::payload()) -> ok.
 send(Worker, Payload) -> gen_server:cast(Worker, {log, Payload}).
 
 %% @doc
@@ -53,11 +54,11 @@ start_link() -> supervisor:start_link({local, erlogstash_sup}, ?MODULE, []).
 -spec start_worker(Output::output()) -> {ok, pid()} | {error, supervisor:startchild_err()}.
 start_worker(Output) -> supervisor:start_child(erlogstash_sup, [Output]).
 
--spec start_worker(Name::supervisor:sup_ref() | {local, atom()}, Output::output()) ->
+-spec start_worker(Worker::worker() | {local, atom()}, Output::output()) ->
           {ok, pid()} | {error, supervisor:startchild_err()}.
-start_worker(Name, Output) -> supervisor:start_child(erlogstash_sup, [Name, Output]).
+start_worker(Worker, Output) -> supervisor:start_child(erlogstash_sup, [Worker, Output]).
 
--spec stop_worker(Worker::supervisor:sup_ref()) -> ok.
+-spec stop_worker(Worker::worker()) -> ok.
 stop_worker(Worker) -> gen_server:cast(Worker, stop).
 
 %% application callbacks
