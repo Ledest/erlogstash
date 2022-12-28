@@ -28,149 +28,81 @@
 -export([start/1, start_link/1, start_link/2, stop/1]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -define(DEFAULT_TIMEOUT, timer:seconds(5)).
 -define(RECONNECT_TIMEOUT, timer:seconds(15)).
 
--type handle() :: gen_tcp:socket() | gen_udp:socket() | file:fd().
--type config() :: {tcp, inet:hostname(), inet:port_number(), pos_integer()} |
-                  {tcp | udp, inet:hostname(), inet:port_number()} |
-                  {file, string()}.
+-type handle() :: gen_tcp:socket()|gen_udp:socket()|file:fd().
 
--record(state, {handle :: handle() | undefined, config :: config()}).
+-record(state, {handle::handle()|undefined, config::erlogstash:output()}).
+-record(init, {count = 0::non_neg_integer(), payload = [] :: erlogstash:payload()}).
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+-type state() :: #state{}.
+-type init() :: #init{}.
 
-start(Output) -> gen_server:start(?MODULE, [Output], []).
+%% API
 
-start_link(Output) -> gen_server:start_link(?MODULE, [Output], []).
+start(Output) -> gen_server:start(?MODULE, Output, []).
+
+start_link(Output) -> gen_server:start_link(?MODULE, Output, []).
 
 start_link(undefined, Output) -> start_link(Output);
-start_link(Name, Output) when is_atom(Name) -> gen_server:start_link({local, Name}, ?MODULE, [Output], []);
-start_link({T, _} = Name, Output) when T =:= local; T =:= global -> gen_server:start_link(Name, ?MODULE, [Output], []);
-start_link({via, _, _} = Name, Output) -> gen_server:start_link(Name, ?MODULE, [Output], []).
+start_link(Name, Output) when is_atom(Name) -> gen_server:start_link({local, Name}, ?MODULE, Output, []);
+start_link({T, _} = Name, Output) when T =:= local; T =:= global -> gen_server:start_link(Name, ?MODULE, Output, []);
+start_link({via, _, _} = Name, Output) -> gen_server:start_link(Name, ?MODULE, Output, []).
 
 stop(Pid) -> gen_server:cast(Pid, stop).
 
-%%%===================================================================
-%%% gen_server callbacks
-%%%===================================================================
+%% gen_server callbacks
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Initializes the server
-%%
-%% @spec init(Args) -> {ok, State} |
-%%                     {ok, State, Timeout} |
-%%                     ignore |
-%%                     {stop, Reason}
-%% @end
-%%--------------------------------------------------------------------
-init([Output]) ->
+-spec init(erlogstash:output()) -> {ok, init()}.
+init(Output) ->
     self() ! {reconnect, Output},
-    {ok, reconnect_buf_init()}.
+    {ok, #init{}}.
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Handling call messages
-%%
-%% @spec handle_call(Request, From, State) ->
-%%                                   {reply, Reply, State} |
-%%                                   {reply, Reply, State, Timeout} |
-%%                                   {noreply, State} |
-%%                                   {noreply, State, Timeout} |
-%%                                   {stop, Reason, Reply, State} |
-%%                                   {stop, Reason, State}
-%% @end
-%%--------------------------------------------------------------------
+-spec handle_call(term(), {pid(), term()}, State) -> {reply, ok, State} when State :: state()|init().
 handle_call(_Request, _From, State) -> {reply, ok, State}.
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Handling cast messages
-%%
-%% @spec handle_cast(Msg, State) -> {noreply, State} |
-%%                                  {noreply, State, Timeout} |
-%%                                  {stop, Reason, State}
-%% @end
-%%--------------------------------------------------------------------
+-spec handle_cast(term(), state() | init()) -> {stop, normal, state()} | {noreply, state()|init()}.
 handle_cast(stop, State) -> {stop, normal, State};
-handle_cast({log, Payload}, {initializing, _} = State) -> {noreply, reconnect_buf_queue(Payload, State)};
+handle_cast({log, Payload}, #init{} = Init) -> {noreply, reconnect_buf_queue(Payload, Init)};
 handle_cast({log, Payload}, State) ->
     ok = send_log(Payload, State),
     {noreply, State};
 handle_cast(_Msg, State) -> {noreply, State}.
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Handling all non call/cast messages
-%%
-%% @spec handle_info(Info, State) -> {noreply, State} |
-%%                                   {noreply, State, Timeout} |
-%%                                   {stop, Reason, State}
-%% @end
-%%--------------------------------------------------------------------
-handle_info({reconnect, Output}, {initializing, _} = BufState) ->
+-spec handle_info(term(), state()|init()) -> {stop, normal, state()} | {noreply, state()|init()}.
+handle_info({reconnect, Output}, #init{} = Init) ->
     {noreply,
      case connect(Output) of
-         {ok, State} -> reconnect_buf_drain(BufState, State);
+         {ok, State} -> reconnect_buf_drain(Init, State);
          {error, nxdomain} ->
              %% Keep a deliberately long timeout here to avoid thundering herds
              %% against the DNS service
              timer:send_after(timer:minutes(1), self(), {reconnect, Output}),
-             BufState;
+             Init;
          {error, Reason} ->
              %% Unknown errors should output warnings to us
              Reason =/= timeout andalso Reason =/= econnrefused andalso
                  error_logger:info_msg("Trying to connect to logstash had error reason ~p", [Reason]),
              timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Output}),
-             BufState
+             Init
      end};
 handle_info({tcp, S, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
     {noreply, State};
-handle_info({tcp_closed, S}, #state {config = Conf, handle = S}) ->
+handle_info({tcp_closed, S}, #state{config = Conf, handle = S}) ->
     timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Conf}),
-    {noreply, reconnect_buf_init()};
+    {noreply, #init{}};
 handle_info({udp, S, _IP, _Port, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
     {noreply, State};
 handle_info(_Info, State) -> {noreply, State}.
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% This function is called by a gen_server when it is about to
-%% terminate. It should be the opposite of Module:init/1 and do any
-%% necessary cleaning up. When it returns, the gen_server terminates
-%% with Reason. The return value is ignored.
-%%
-%% @spec terminate(Reason, State) -> void()
-%% @end
-%%--------------------------------------------------------------------
-terminate(_Reason, _State) -> ok.
+%% internal functions
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Convert process state when code is changed
-%%
-%% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
-%% @end
-%%--------------------------------------------------------------------
-code_change(_OldVsn, State, _Extra) -> {ok, State}.
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
+-spec connect(erlogstash:output()) -> {ok, state()} | {error, term()}.
 connect({tcp, Host, Port}) -> connect({tcp, Host, Port, ?DEFAULT_TIMEOUT});
 connect({tcp, Host, Port, Timeout} = Conf) ->
     case gen_tcp:connect(Host, Port, [binary, {active, once}, {keepalive, true}], Timeout) of
@@ -188,21 +120,22 @@ connect({file, Path} = Conf) ->
         {error, _} = R -> R
     end.
 
+-spec send_log(Payload::erlogstash:payload(), state()) -> ok.
 send_log(Payload, #state{config = {tcp, _, _, _}, handle = Socket}) -> ok = gen_tcp:send(Socket, Payload);
 send_log(Payload, #state{config = {udp, Host, Port}, handle = Socket}) ->
     ok = gen_udp:send(Socket, Host, Port, Payload);
 send_log(Payload, #state{config = {file, _}, handle = Fd}) -> ok = file:write(Fd, Payload).
 
-%% -- Reconnect Buffering ---------------------------------------
-reconnect_buf_init() -> {initializing, {0, []}}.
+%% Buffer to big, cycle!
+-spec reconnect_buf_queue(Payload::erlogstash:payload(), init()) -> init().
+reconnect_buf_queue(Payload, #init{count = N}) when N > 500 -> #init{count = 1, payload = [Payload]};
+reconnect_buf_queue(Payload, #init{count = N, payload = Payloads}) ->
+    #init{count = N + 1, payload = [Payload|Payloads]}.
 
-reconnect_buf_queue(Payload, {initializing, {N, _Msgs}}) when N > 500 ->
-    %% Buffer to big, cycle!
-    {initializing, {1, [Payload]}};
-reconnect_buf_queue(Payload, {initializing, {N, Msgs}}) -> {initializing, {N + 1, [Payload|Msgs]}}.
+-spec reconnect_buf_drain(init(), state()) -> state().
+reconnect_buf_drain(#init{payload = Payloads}, State) -> drain(Payloads, State).
 
-reconnect_buf_drain({initializing, {_N, Ps}}, State) -> drain(Ps, State).
-
+-spec drain([erlogstash:payload()], State::state()) -> state().
 drain([P|Ps], State) ->
     drain(Ps, State),
     send_log(P, State);
