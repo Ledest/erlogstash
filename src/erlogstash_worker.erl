@@ -56,14 +56,17 @@ stop(Pid) -> gen_server:cast(Pid, stop).
 
 %% gen_server callbacks
 
+%% @private
 -spec init(erlogstash:output()) -> {ok, init()}.
 init(Output) ->
     self() ! {reconnect, Output},
     {ok, #init{}}.
 
+%% @private
 -spec handle_call(term(), {pid(), term()}, State) -> {reply, ok, State} when State :: state()|init().
 handle_call(_Request, _From, State) -> {reply, ok, State}.
 
+%% @private
 -spec handle_cast(term(), state() | init()) -> {stop, normal, state()} | {noreply, state()|init()}.
 handle_cast(stop, State) -> {stop, normal, State};
 handle_cast({log, Payload}, #init{} = Init) -> {noreply, reconnect_buf_queue(Payload, Init)};
@@ -72,6 +75,7 @@ handle_cast({log, Payload}, State) ->
     {noreply, State};
 handle_cast(_Msg, State) -> {noreply, State}.
 
+%% @private
 -spec handle_info(term(), state()|init()) -> {stop, normal, state()} | {noreply, state()|init()}.
 handle_info({reconnect, Output}, #init{} = Init) ->
     {noreply,

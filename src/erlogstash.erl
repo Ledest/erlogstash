@@ -62,6 +62,7 @@ stop_worker(Worker) -> gen_server:cast(Worker, stop).
 
 %% application callbacks
 
+%% @private
 -spec start(application:start_type(), term()) -> {ok, pid()} | {error, supervisor:startlink_err()}.
 start(_StartType, _StartArgs) ->
     case start_link() of
@@ -72,11 +73,13 @@ start(_StartType, _StartArgs) ->
         R -> R
     end.
 
--spec stop([]) -> ok.
-stop(_State) -> ok.
+%% @private
+-spec stop(State::[]) -> ok.
+stop(_) -> ok.
 
 %% supervisor callbacks
 
+%% @private
 -spec init([]) -> {ok, {{simple_one_for_one, non_neg_integer(), 1..1000000}, [supervisor:child_spec()]}}.
 init([]) ->
     {ok, {#{strategy => simple_one_for_one, intensity => 50, period => 3600},
