@@ -52,4 +52,4 @@ Or/and configure `logger`:
   * outputs: `tcp`, `udp`, `file`
   * formats: `json`, `msgpack`
 
-[logstash]: http://logstash.net
+[logstash]: https://www.elastic.co/logstash/
