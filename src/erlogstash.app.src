@@ -1,6 +1,7 @@
 {application, erlogstash,
- [{description, "Logstash client"},
+ [{description, "Logstash client and logger handler"},
   {vsn, "0.4.0"},
-  {registered,[]},
+  {registered, [erlogstash_sup]},
   {mod, {erlogstash, []}},
-  {applications, [kernel, stdlib]}]}.
+  {applications, [kernel, stdlib,
+                  jsone, msgpack]}]}.
