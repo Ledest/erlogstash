@@ -19,40 +19,50 @@
 %% IN THE SOFTWARE.
 
 %% @author Chap Lovejoy <chaplovejoy@gmail.com>
+
 -module(erlogstash).
 
--behaviour(supervisor).
 -behaviour(application).
+-behaviour(supervisor).
 
 %% API
 -export([send/2, start_link/0, start_worker/1, start_worker/2, stop_worker/1]).
-
-%% Supervisor callbacks
+%% application callbacks
+-export([start/2, stop/1]).
+%% supervisor callbacks
 -export([init/1]).
 
-%% Application callbacks
--export([start/2, stop/1]).
+-type output() :: {file, file:name_all()|iodata()} |
+                  {udp, inet:hostname()|inet:ip_address(), inet:port_number()} |
+                  {tcp, inet:hostname()|inet:socket_address(), inet:port_number()} |
+                  {tcp, inet:hostname()|inet:socket_address(), inet:port_number(), timeout()}.
+-type payload() :: iodata().
+-export_type([output/0, payload/0]).
 
-%%%===================================================================
-%%% Application callbacks
-%%%===================================================================
+%% API
 
-%%--------------------------------------------------------------------
-%% @private
+-spec send(Worker::supervisor:sup_ref(), Payload::payload()) -> ok.
+send(Worker, Payload) -> gen_server:cast(Worker, {log, Payload}).
+
 %% @doc
-%% This function is called whenever an application is started using
-%% application:start/[1,2], and should start the processes of the
-%% application. If the application is structured according to the OTP
-%% design principles as a supervision tree, this means starting the
-%% top supervisor of the tree.
-%%
-%% @spec start(StartType, StartArgs) -> {ok, Pid} |
-%%                                      {ok, Pid, State} |
-%%                                      {error, Reason}
-%%      StartType = normal | {takeover, Node} | {failover, Node}
-%%      StartArgs = term()
+%% Starts the supervisor
 %% @end
-%%--------------------------------------------------------------------
+-spec start_link() -> supervisor:startlink_ret().
+start_link() -> supervisor:start_link({local, erlogstash_sup}, ?MODULE, []).
+
+-spec start_worker(Output::output()) -> {ok, pid()} | {error, supervisor:startchild_err()}.
+start_worker(Output) -> supervisor:start_child(erlogstash_sup, [Output]).
+
+-spec start_worker(Name::supervisor:sup_ref() | {local, atom()}, Output::output()) ->
+          {ok, pid()} | {error, supervisor:startchild_err()}.
+start_worker(Name, Output) -> supervisor:start_child(erlogstash_sup, [Name, Output]).
+
+-spec stop_worker(Worker::supervisor:sup_ref()) -> ok.
+stop_worker(Worker) -> gen_server:cast(Worker, stop).
+
+%% application callbacks
+
+-spec start(application:start_type(), term()) -> {ok, pid()} | {error, supervisor:startlink_err()}.
 start(_StartType, _StartArgs) ->
     case start_link() of
         {ok, _} = R ->
@@ -62,65 +72,12 @@ start(_StartType, _StartArgs) ->
         R -> R
     end.
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% This function is called whenever an application has stopped. It
-%% is intended to be the opposite of Module:start/2 and should do
-%% any necessary cleaning up. The return value is ignored.
-%%
-%% @spec stop(State) -> void()
-%% @end
-%%--------------------------------------------------------------------
+-spec stop([]) -> ok.
 stop(_State) -> ok.
 
--define(SERVER, ?MODULE).
+%% supervisor callbacks
 
-%%%===================================================================
-%%% API functions
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Starts the supervisor
-%%
-%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
-%% @end
-%%--------------------------------------------------------------------
-start_link() -> supervisor:start_link({local, erlogstash_sup}, ?MODULE, []).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Send payload to logstash
-%%
-%% @spec send(Worker, Payload) -> ok
-%% @end
-%%--------------------------------------------------------------------
-send(Worker, Payload) -> gen_server:cast(Worker, {log, Payload}).
-
-%%%===================================================================
-%%% Supervisor callbacks
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Whenever a supervisor is started using supervisor:start_link/[2,3],
-%% this function is called by the new process to find out about
-%% restart strategy, maximum restart frequency and child
-%% specifications.
-%%
-%% @spec init(Args) -> {ok, {SupFlags, [ChildSpec]}} |
-%%                     ignore |
-%%                     {error, Reason}
-%% @end
-%%--------------------------------------------------------------------
+-spec init([]) -> {ok, {{simple_one_for_one, non_neg_integer(), 1..1000000}, [supervisor:child_spec()]}}.
 init([]) ->
-    {ok, {{simple_one_for_one, 50, 3600},
-          [{erlogstash_worker, {erlogstash_worker, start_link, []}, temporary, 2000, worker, [erlogstash_worker]}]}}.
-
-start_worker(Output) -> supervisor:start_child(erlogstash_sup, [Output]).
-
-start_worker(Name, Output) -> supervisor:start_child(erlogstash_sup, [Name, Output]).
-
-stop_worker(Worker) -> gen_server:cast(Worker, stop).
+    {ok, {#{strategy => simple_one_for_one, intensity => 50, period => 3600},
+          [#{id => undefined, start => {erlogstash_worker, start_link, []}, restart => transient, shutdown => 2000}]}}.
