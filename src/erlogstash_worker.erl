@@ -43,16 +43,21 @@
 
 %% API
 
+-spec start(Output::erlogstash:output()) -> {ok, pid()}.
 start(Output) -> gen_server:start(?MODULE, Output, []).
 
+-spec start_link(Output::erlogstash:output()) -> {ok, pid()}.
 start_link(Output) -> gen_server:start_link(?MODULE, Output, []).
 
+-spec start_link(Worker::erlogstash:worker(), Output::erlogstash:output()) -> {ok, pid()}.
 start_link(undefined, Output) -> start_link(Output);
-start_link(Name, Output) when is_atom(Name) -> gen_server:start_link({local, Name}, ?MODULE, Output, []);
-start_link({T, _} = Name, Output) when T =:= local; T =:= global -> gen_server:start_link(Name, ?MODULE, Output, []);
-start_link({via, _, _} = Name, Output) -> gen_server:start_link(Name, ?MODULE, Output, []).
+start_link(Worker, Output) when is_atom(Worker) -> gen_server:start_link({local, Worker}, ?MODULE, Output, []);
+start_link({via, _, _} = Worker, Output) -> gen_server:start_link(Worker, ?MODULE, Output, []);
+start_link({T, _} = Worker, Output) when T =:= local; T =:= global ->
+    gen_server:start_link(Worker, ?MODULE, Output, []).
 
-stop(Pid) -> gen_server:cast(Pid, stop).
+-spec stop(Worker::erlogstash:worker()) -> ok.
+stop(Worker) -> gen_server:cast(Worker, stop).
 
 %% gen_server callbacks
 
