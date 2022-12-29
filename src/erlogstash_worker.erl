@@ -75,8 +75,8 @@ handle_call(_Request, _From, State) -> {reply, ok, State}.
 -spec handle_cast(term(), state() | init()) -> {stop, normal, state()} | {noreply, state()|init()}.
 handle_cast(stop, State) -> {stop, normal, State};
 handle_cast({log, Payload}, #init{} = Init) -> {noreply, reconnect_buf_queue(Payload, Init)};
-handle_cast({log, Payload}, State) ->
-    ok = send_log(Payload, State),
+handle_cast({log, Payload}, #state{handle = Handle, config = Output} = State) ->
+    ok = send_log(Handle, Payload, Output),
     {noreply, State};
 handle_cast(_Msg, State) -> {noreply, State}.
 
@@ -85,8 +85,8 @@ handle_cast(_Msg, State) -> {noreply, State}.
 handle_info({reconnect, Output}, #init{} = Init) ->
     {noreply,
      case connect(Output) of
-         {ok, State} ->
-             reconnect_buf_drain(Init, State),
+         {ok, #state{handle = H, config = O} = State} ->
+             drain(H, Init#init.payload, O),
              State;
          {error, nxdomain} ->
              %% Keep a deliberately long timeout here to avoid thundering herds
@@ -131,11 +131,10 @@ connect({file, Path} = Conf) ->
         {error, _} = R -> R
     end.
 
--spec send_log(Payload::erlogstash:payload(), state()) -> ok.
-send_log(Payload, #state{config = {tcp, _, _, _}, handle = Socket}) -> ok = gen_tcp:send(Socket, Payload);
-send_log(Payload, #state{config = {udp, Host, Port}, handle = Socket}) ->
-    ok = gen_udp:send(Socket, Host, Port, Payload);
-send_log(Payload, #state{config = {file, _}, handle = Fd}) -> ok = file:write(Fd, Payload).
+-spec send_log(Handle::handle(), Payload::erlogstash:payload(), Output::erlogstash:output()) -> ok.
+send_log(Handle, Payload, {tcp, _, _, _}) -> ok = gen_tcp:send(Handle, Payload);
+send_log(Handle, Payload, {udp, Host, Port}) -> ok = gen_udp:send(Handle, Host, Port, Payload);
+send_log(Handle, Payload, {file, _}) -> ok = file:write(Handle, Payload).
 
 %% Buffer to big, cycle!
 -spec reconnect_buf_queue(Payload::erlogstash:payload(), init()) -> init().
@@ -143,11 +142,8 @@ reconnect_buf_queue(Payload, #init{count = N}) when N > 500 -> #init{count = 1, 
 reconnect_buf_queue(Payload, #init{count = N, payload = Payloads}) ->
     #init{count = N + 1, payload = [Payload|Payloads]}.
 
--spec reconnect_buf_drain(init(), state()) -> ok.
-reconnect_buf_drain(#init{payload = Payloads}, State) -> drain(Payloads, State).
-
--spec drain([erlogstash:payload()], State::state()) -> ok.
-drain([P|Ps], State) ->
-    drain(Ps, State),
-    send_log(P, State);
-drain([], _) -> ok.
+-spec drain(Handle::handle(), [erlogstash:payload()], Output::erlogstash:output()) -> ok.
+drain(Handle, [P|Ps], Output) ->
+    drain(Handle, Ps, Output),
+    send_log(Handle, P, Output);
+drain(_, [], _) -> ok.
