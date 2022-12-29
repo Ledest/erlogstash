@@ -109,6 +109,7 @@ handle_info({tcp, S, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
     {noreply, State};
 handle_info({tcp_closed, S}, #state{output = Output, handle = S}) ->
+    error_logger:error_msg("Connection ~p closed", [Output]),
     timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Output}),
     {noreply, #init{}};
 handle_info({udp, S, _IP, _Port, _Data}, State) ->
