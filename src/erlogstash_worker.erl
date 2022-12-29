@@ -80,6 +80,7 @@ handle_cast({log, Payload}, #state{handle = Handle, output = Output} = State) ->
      case send_log(Handle, Payload, Output) of
          ok -> State;
          _error ->
+             close(Handle, Output),
              self() ! {reconnect, Output},
              #init{count = 1, payload = [Payload]}
      end};
@@ -136,6 +137,13 @@ connect({file, Path} = Output) ->
         {ok, Fd} -> {ok, #state{output = Output, handle = Fd}};
         {error, _} = R -> R
     end.
+
+-spec close(Handle::handle()|undefined, Output::erlogstash:output()) -> ok | {error, term()}.
+close(undefined, _) -> ok;
+close(Handle, {tcp, _, _, _}) -> gen_tcp:close(Handle);
+close(Handle, {udp, _, _}) -> gen_udp:close(Handle);
+close(Handle, {file, _}) -> file:close(Handle);
+close(_, _) -> ok.
 
 -spec send_log(Handle::handle(), Payload::erlogstash:payload(), Output::erlogstash:output()) -> ok | {error, term()}.
 send_log(Handle, Payload, Output) ->
