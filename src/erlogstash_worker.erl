@@ -143,11 +143,11 @@ reconnect_buf_queue(Payload, #init{count = N}) when N > 500 -> #init{count = 1, 
 reconnect_buf_queue(Payload, #init{count = N, payload = Payloads}) ->
     #init{count = N + 1, payload = [Payload|Payloads]}.
 
--spec reconnect_buf_drain(init(), state()) -> state().
+-spec reconnect_buf_drain(init(), state()) -> ok.
 reconnect_buf_drain(#init{payload = Payloads}, State) -> drain(Payloads, State).
 
--spec drain([erlogstash:payload()], State::state()) -> state().
+-spec drain([erlogstash:payload()], State::state()) -> ok.
 drain([P|Ps], State) ->
     drain(Ps, State),
     send_log(P, State);
-drain([], State) -> ok.
+drain([], _) -> ok.

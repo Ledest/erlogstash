@@ -16,7 +16,8 @@ check_config(_) -> ok.
 -spec format(LogEvent::logger:log_event(), Config::logger_formatter:config()) -> unicode:chardata().
 format(#{level := Level, msg := Msg, meta := Meta}, Config) ->
     encode(maps:get(format, Config, ?DEFAULT_FORMAT),
-           [{level, Level}, {node, node()}, {message, unicode:characters_to_binary(msg(Msg, Meta))}|meta(Meta)]).
+           [{level, Level}, {node, node()}, {type, erlogstash},
+            {message, unicode:characters_to_binary(msg(Msg, Meta))}|meta(Meta)]).
 
 %% internal functions
 
