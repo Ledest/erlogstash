@@ -119,7 +119,7 @@ handle_info(_Info, State) -> {noreply, State}.
 
 %% internal functions
 
--spec connect(erlogstash:output()) -> {ok, state()} | {error, term()}.
+-spec connect(Output::erlogstash:output()) -> {ok, state()} | {error, term()}.
 connect({tcp, Host, Port}) -> connect({tcp, Host, Port, ?DEFAULT_TIMEOUT});
 connect({tcp, Host, Port, Timeout} = Output) ->
     case gen_tcp:connect(Host, Port, [binary, {active, once}, {keepalive, true}], Timeout) of
