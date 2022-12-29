@@ -31,11 +31,11 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -define(DEFAULT_TIMEOUT, timer:seconds(5)).
--define(RECONNECT_TIMEOUT, timer:seconds(15)).
+-define(RECONNECT_TIMEOUT, timer:seconds(5)).
 
 -type handle() :: gen_tcp:socket()|gen_udp:socket()|file:fd().
 
--record(state, {handle::handle()|undefined, config::erlogstash:output()}).
+-record(state, {handle::handle()|undefined, output::erlogstash:output()}).
 -record(init, {count = 0::non_neg_integer(), payload = [] :: erlogstash:payload()}).
 
 -type state() :: #state{}.
@@ -75,9 +75,14 @@ handle_call(_Request, _From, State) -> {reply, ok, State}.
 -spec handle_cast(term(), state() | init()) -> {stop, normal, state()} | {noreply, state()|init()}.
 handle_cast(stop, State) -> {stop, normal, State};
 handle_cast({log, Payload}, #init{} = Init) -> {noreply, reconnect_buf_queue(Payload, Init)};
-handle_cast({log, Payload}, #state{handle = Handle, config = Output} = State) ->
-    ok = send_log(Handle, Payload, Output),
-    {noreply, State};
+handle_cast({log, Payload}, #state{handle = Handle, output = Output} = State) ->
+    {noreply,
+     case send_log(Handle, Payload, Output) of
+         ok -> State;
+         _error ->
+             self() ! {reconnect, Output},
+             #init{count = 1, payload = [Payload]}
+     end};
 handle_cast(_Msg, State) -> {noreply, State}.
 
 %% @private
@@ -85,7 +90,7 @@ handle_cast(_Msg, State) -> {noreply, State}.
 handle_info({reconnect, Output}, #init{} = Init) ->
     {noreply,
      case connect(Output) of
-         {ok, #state{handle = H, config = O} = State} ->
+         {ok, #state{handle = H, output = O} = State} ->
              drain(H, Init#init.payload, O),
              State;
          {error, nxdomain} ->
@@ -96,15 +101,15 @@ handle_info({reconnect, Output}, #init{} = Init) ->
          {error, Reason} ->
              %% Unknown errors should output warnings to us
              Reason =/= timeout andalso Reason =/= econnrefused andalso
-                 error_logger:info_msg("Trying to connect to logstash had error reason ~p", [Reason]),
+                 error_logger:error_msg("Trying to connect to logstash had error reason ~p", [Reason]),
              timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Output}),
              Init
      end};
 handle_info({tcp, S, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
     {noreply, State};
-handle_info({tcp_closed, S}, #state{config = Conf, handle = S}) ->
-    timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Conf}),
+handle_info({tcp_closed, S}, #state{output = Output, handle = S}) ->
+    timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Output}),
     {noreply, #init{}};
 handle_info({udp, S, _IP, _Port, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
@@ -115,26 +120,35 @@ handle_info(_Info, State) -> {noreply, State}.
 
 -spec connect(erlogstash:output()) -> {ok, state()} | {error, term()}.
 connect({tcp, Host, Port}) -> connect({tcp, Host, Port, ?DEFAULT_TIMEOUT});
-connect({tcp, Host, Port, Timeout} = Conf) ->
+connect({tcp, Host, Port, Timeout} = Output) ->
     case gen_tcp:connect(Host, Port, [binary, {active, once}, {keepalive, true}], Timeout) of
-        {ok, Socket} -> {ok, #state{config = Conf, handle = Socket}};
+        {ok, Socket} -> {ok, #state{output = Output, handle = Socket}};
         {error, _} = R -> R
     end;
-connect({udp, _, _} = Conf) ->
+connect({udp, _, _} = Output) ->
     case gen_udp:open(0, [binary]) of
-        {ok, Socket} -> {ok, #state{config = Conf, handle = Socket}};
+        {ok, Socket} -> {ok, #state{output = Output, handle = Socket}};
         {error, _} = R -> R
     end;
-connect({file, Path} = Conf) ->
+connect({file, Path} = Output) ->
     case file:open(Path, [append]) of
-        {ok, Fd} -> {ok, #state{config = Conf, handle = Fd}};
+        {ok, Fd} -> {ok, #state{output = Output, handle = Fd}};
         {error, _} = R -> R
     end.
 
--spec send_log(Handle::handle(), Payload::erlogstash:payload(), Output::erlogstash:output()) -> ok.
-send_log(Handle, Payload, {tcp, _, _, _}) -> ok = gen_tcp:send(Handle, Payload);
-send_log(Handle, Payload, {udp, Host, Port}) -> ok = gen_udp:send(Handle, Host, Port, Payload);
-send_log(Handle, Payload, {file, _}) -> ok = file:write(Handle, Payload).
+-spec send_log(Handle::handle(), Payload::erlogstash:payload(), Output::erlogstash:output()) -> ok | {error, term()}.
+send_log(Handle, Payload, Output) ->
+    case send(Handle, Payload, Output) of
+        ok -> ok;
+        {error, _} = E ->
+            error_logger:error_msg("Send ~p: ~p", [Output, E]),
+            E
+    end.
+
+-spec send(Handle::handle(), Payload::erlogstash:payload(), Output::erlogstash:output()) -> ok | {error, term()}.
+send(Handle, Payload, {tcp, _, _, _}) -> ok = gen_tcp:send(Handle, Payload);
+send(Handle, Payload, {udp, Host, Port}) -> ok = gen_udp:send(Handle, Host, Port, Payload);
+send(Handle, Payload, {file, _}) -> ok = file:write(Handle, Payload).
 
 %% Buffer to big, cycle!
 -spec reconnect_buf_queue(Payload::erlogstash:payload(), init()) -> init().
