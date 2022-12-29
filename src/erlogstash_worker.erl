@@ -85,7 +85,9 @@ handle_cast(_Msg, State) -> {noreply, State}.
 handle_info({reconnect, Output}, #init{} = Init) ->
     {noreply,
      case connect(Output) of
-         {ok, State} -> reconnect_buf_drain(Init, State);
+         {ok, State} ->
+             reconnect_buf_drain(Init, State),
+             State;
          {error, nxdomain} ->
              %% Keep a deliberately long timeout here to avoid thundering herds
              %% against the DNS service
@@ -148,4 +150,4 @@ reconnect_buf_drain(#init{payload = Payloads}, State) -> drain(Payloads, State).
 drain([P|Ps], State) ->
     drain(Ps, State),
     send_log(P, State);
-drain([], State) -> State.
+drain([], State) -> ok.
