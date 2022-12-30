@@ -55,5 +55,6 @@ mfa(M, F, A) ->
     <<(atom_to_binary(M, latin1))/binary, $:, (atom_to_binary(F, utf8))/binary, $/, (integer_to_binary(A))/binary>>.
 
 -spec encode(Format::format(), Data::data()) -> iodata().
-encode(json, Data) -> [jsone:encode(Data), $\n];
+encode(json, Data) -> jsone:encode(Data);
+encode(json_line, Data) -> [encode(json, Data), $\n];
 encode(msgpack, Data) -> msgpack:pack(Data, [{pack_str, none}]).
