@@ -16,8 +16,8 @@ check_config(_) -> ok.
 -spec format(LogEvent::logger:log_event(), Config::logger_formatter:config()) -> unicode:chardata().
 format(#{level := Level, msg := Msg, meta := Meta}, Config) ->
     encode(maps:get(format, Config, ?DEFAULT_FORMAT),
-           [{level, Level}, {node, node()}, {type, erlogstash},
-            {message, unicode:characters_to_binary(msg(Msg, Meta))}|meta(Meta)]).
+           (meta(Meta))#{level => Level, node => node(), type => erlogstash,
+                         message => unicode:characters_to_binary(msg(Msg, Meta))}).
 
 %% internal functions
 
@@ -31,24 +31,24 @@ msg({string, D}, _) -> D;
 msg({F, A}, _) -> io_lib:format(F, A).
 
 -spec meta(Meta::logger:metadata()) -> data().
-meta(Meta) -> maps:fold(fun meta/3, [], Meta).
+meta(Meta) -> maps:fold(fun meta/3, #{}, Meta).
 
 -spec meta(Tag::atom(), V::term(), A::data()) -> data().
-meta(time, V, A) -> 
-    [{'@timestamp', list_to_binary(calendar:system_time_to_rfc3339(V, [{unit, microsecond}, {offset, "Z"}]))}|A];
-meta(domain, V, A) -> [{domain, V}|A];
-meta(file, V, A) -> [{file, unicode:characters_to_binary(V)}|A];
-meta(mfa, {M, F, Arity}, A) -> [{module, M}, {function, F}, {arity, Arity}, {mfa, mfa(M, F, Arity)}|A];
+meta(time, V, A) ->
+    A#{'@timestamp' => list_to_binary(calendar:system_time_to_rfc3339(V, [{unit, microsecond}, {offset, "Z"}]))};
+meta(domain, V, A) -> A#{domain => V};
+meta(file, V, A) -> A#{file => unicode:characters_to_binary(V)};
+meta(mfa, {M, F, Arity}, A) -> A#{module => M, function => F, arity => Arity, mfa => mfa(M, F, Arity)};
 meta(K, _, A) when K =:= error_logger; K =:= logger_formatter; K =:= report_cb; K =:= gl -> A;
-meta(K, undefined, A) -> [{K, null}|A];
-meta(K, P, A) when is_pid(P) -> [{K, list_to_binary(pid_to_list(P))}|A];
-meta(K, V, A) when is_number(V); is_atom(V); is_binary(V) -> [{K, V}|A];
-meta(K, V, A) when is_list(V) ->
-    [{K, unicode:characters_to_binary(case io_lib:char_list(V) of
-                                          true -> V;
-                                          _false -> io_lib:write(V)
-                                      end)}|A];
-meta(K, V, A) -> [{K, unicode:characters_to_binary(io_lib:write(V))}|A].
+meta(K, undefined, A) -> A#{K => null};
+meta(K, P, A) when is_pid(P) -> A#{K => list_to_binary(pid_to_list(P))};
+meta(K, P, A) when is_port(P) -> A#{K => list_to_binary(port_to_list(P))};
+meta(K, V, A) when is_number(V); is_atom(V); is_binary(V) -> A#{K => V};
+meta(K, V, A) ->
+    A#{K => unicode:characters_to_binary(case io_lib:char_list(V) of
+                                             true -> V;
+                                             _false -> io_lib:write(V)
+                                         end)}.
 
 -spec mfa(M::module(), F::atom(), A::non_neg_integer()) -> binary().
 mfa(M, F, A) ->
@@ -56,4 +56,4 @@ mfa(M, F, A) ->
 
 -spec encode(Format::format(), Data::data()) -> iodata().
 encode(json, Data) -> [jsone:encode(Data), $\n];
-encode(msgpack, Data) -> msgpack:pack(Data, [{pack_str, none}, {map_format, jsx}]).
+encode(msgpack, Data) -> msgpack:pack(Data, [{pack_str, none}]).
