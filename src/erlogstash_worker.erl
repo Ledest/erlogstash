@@ -161,7 +161,9 @@ send(Handle, Payload, {file, _}) -> ok = file:write(Handle, Payload).
 
 %% Buffer to big, cycle!
 -spec reconnect_buf_queue(Payload::erlogstash:payload(), init()) -> init().
-reconnect_buf_queue(Payload, #init{count = N}) when N > 500 -> #init{count = 1, payload = [Payload]};
+reconnect_buf_queue(Payload, #init{count = N}) when N >= 500 ->
+    error_logger:warning_msg("Drop ~B log events", [N]),
+    #init{count = 1, payload = [Payload]};
 reconnect_buf_queue(Payload, #init{count = N, payload = Payloads}) ->
     #init{count = N + 1, payload = [Payload|Payloads]}.
 
