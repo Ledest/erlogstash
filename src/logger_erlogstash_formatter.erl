@@ -6,7 +6,7 @@
 -define(DEFAULT_FORMAT, json).
 
 -type format() :: json|msgpack.
--type data() :: [{atom(), null|atom()|number()|binary()|[atom()]}].
+-type data() :: #{atom() => null|atom()|number()|binary()|[atom()]}.
 -type msg() :: {io:format(), [term()]} | {report, logger:report()} | {string, unicode:chardata()}.
 
 -spec check_config(Config::logger_formatter:config()) -> ok | {error, term()}.
