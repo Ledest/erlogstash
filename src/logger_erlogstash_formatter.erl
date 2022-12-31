@@ -6,7 +6,8 @@
 -define(DEFAULT_FORMAT, json).
 
 -type format() :: json|msgpack.
--type data() :: #{atom() => null|atom()|number()|binary()|[atom()]}.
+-type value() :: null | boolean() | atom() | binary() | number() | [value()] | #{atom() => value()}.
+-type data() :: #{atom() => value()}.
 -type msg() :: {io:format(), [term()]} | {report, logger:report()} | {string, unicode:chardata()}.
 
 -spec check_config(Config::logger_formatter:config()) -> ok | {error, term()}.
@@ -36,19 +37,34 @@ meta(Meta) -> maps:fold(fun meta/3, #{}, Meta).
 -spec meta(Tag::atom(), V::term(), A::data()) -> data().
 meta(time, V, A) ->
     A#{'@timestamp' => list_to_binary(calendar:system_time_to_rfc3339(V, [{unit, microsecond}, {offset, "Z"}]))};
-meta(domain, V, A) -> A#{domain => V};
 meta(file, V, A) -> A#{file => unicode:characters_to_binary(V)};
 meta(mfa, {M, F, Arity}, A) -> A#{module => M, function => F, arity => Arity, mfa => mfa(M, F, Arity)};
 meta(K, _, A) when K =:= error_logger; K =:= logger_formatter; K =:= report_cb; K =:= gl -> A;
-meta(K, undefined, A) -> A#{K => null};
-meta(K, P, A) when is_pid(P) -> A#{K => list_to_binary(pid_to_list(P))};
-meta(K, P, A) when is_port(P) -> A#{K => list_to_binary(port_to_list(P))};
-meta(K, V, A) when is_number(V); is_atom(V); is_binary(V) -> A#{K => V};
-meta(K, V, A) ->
-    A#{K => unicode:characters_to_binary(case io_lib:char_list(V) of
-                                             true -> V;
-                                             _false -> io_lib:write(V)
-                                         end)}.
+meta(K, V, A) -> A#{K => value(V)}.
+
+-spec value(term()) -> value().
+value(undefined) -> null;
+value(V) when is_number(V); is_boolean(V); is_atom(V); is_binary(V) -> V;
+value(P) when is_pid(P) -> list_to_binary(pid_to_list(P));
+value(P) when is_port(P) -> list_to_binary(port_to_list(P));
+value(R) when is_reference(R) -> list_to_binary(ref_to_list(R));
+value(M) when is_map(M) -> maps:map(fun(_, V) -> value(V) end, M);
+value(L) when is_list(L) ->
+    case io_lib:char_list(L) of
+        true -> unicode:characters_to_binary(L);
+        _false -> lists:map(fun value/1, L)
+    end;
+value(T) when is_tuple(T) -> lists:map(fun value/1, tuple_to_list(T));
+value(F) when is_function(F) ->
+    I = erlang:fun_info(F),
+    case lists:keyfind(type, 1, I) of
+        {_, external} -> unicode:characters_to_binary(erlang:fun_to_list(F));
+        _ ->
+            {_, M} = lists:keyfind(module, 1, I),
+            {_, N} = lists:keyfind(name, 1, I),
+            {_, A} = lists:keyfind(arity, 1, I),
+            <<"fun ", (mfa(M, N, A))/binary>>
+    end.
 
 -spec mfa(M::module(), F::atom(), A::non_neg_integer()) -> binary().
 mfa(M, F, A) ->
