@@ -1,0 +1,24 @@
+name: Erlang rebar CI
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        version: ["25.2", "25.1", "25.0", "24.3", "24.2", "24.1", "24.0", "23.3", "23.2", "23.1", "23.0", "22.3", "22.2", "22.1", "22.0", "21.3", "21.2", "21.1"]
+    container:
+      image: erlang:${{ matrix.version }}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Compile
+      run: rebar3 compile
+    - name: XRef
+      run: rebar3 xref
