@@ -28,7 +28,7 @@
 -export([start/1, start_link/1, start_link/2, stop/1]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(DEFAULT_TIMEOUT, timer:seconds(5)).
 -define(RECONNECT_TIMEOUT, timer:seconds(5)).
@@ -117,6 +117,9 @@ handle_info({udp, S, _IP, _Port, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
     {noreply, State};
 handle_info(_Info, State) -> {noreply, State}.
+
+-spec terminate(Reason::normal, State::state()) -> ok | {error, term()}.
+terminate(_Reason, #state{handle = Handle, output = Output}) -> close(Handle, Output).
 
 %% internal functions
 
