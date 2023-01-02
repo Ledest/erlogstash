@@ -87,7 +87,7 @@ handle_cast({log, Payload}, #state{handle = Handle, output = Output} = State) ->
 handle_cast(_Msg, State) -> {noreply, State}.
 
 %% @private
--spec handle_info(term(), state()|init()) -> {stop, normal, state()} | {noreply, state()|init()}.
+-spec handle_info(term(), state()|init()) -> {noreply, state()|init()}.
 handle_info({reconnect, Output}, #init{} = Init) ->
     {noreply,
      case connect(Output) of
