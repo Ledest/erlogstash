@@ -95,6 +95,79 @@ timestamp(T, iso8601) ->
 timestamp(T, _) -> T.
 
 -spec encode(Data::data(), Format::format()) -> iodata().
-encode(Data, json) -> jsone:encode(Data);
+encode(Data, json) -> enc_json(Data);
 encode(Data, json_line) -> [encode(Data, json), $\n];
-encode(Data, msgpack) -> msgpack:pack(Data, [{pack_str, none}]).
+encode(Data, msgpack) -> enc_msgpack(Data).
+
+enc_json(null) -> <<"null">>;
+enc_json(false) -> <<"false">>;
+enc_json(true) -> <<"true">>;
+enc_json(V) when is_list(V) -> enc_json_list(V);
+enc_json(V) when is_integer(V) -> integer_to_binary(V);
+enc_json(V) when is_float(V) -> float_to_binary(V);
+enc_json(V) when is_atom(V) -> enc_json_str(atom_to_binary(V));
+enc_json(V) when is_binary(V) -> [$", V, $"];
+enc_json(M) when is_map(M) ->
+    [${, join(maps:fold(fun(K, V, A) -> [[$", json_key(K), $", $:, enc_json(V)]|A] end, [], M)), $}];
+enc_json(V) when is_tuple(V) -> enc_json_list(tuple_to_list(V)).
+
+enc_json_list(V) -> [$[, join(lists:map(fun enc_json/1, V)), $]].
+
+enc_json_str(V) -> [$", V, $"].
+
+json_key(K) when is_atom(K) -> atom_to_binary(K);
+json_key(K) when is_binary(K) -> K;
+json_key(K) when is_integer(K) -> integer_to_binary(K).
+
+join(L) -> lists:join($,, L).
+
+enc_msgpack(null) -> 16#C0;
+enc_msgpack(false) -> 16#C2;
+enc_msgpack(true) -> 16#C3;
+enc_msgpack(V) when is_binary(V) -> enc_msgpack_str(V);
+enc_msgpack(V) when is_list(V) -> enc_msgpack_list(V);
+enc_msgpack(V) when is_float(V) -> <<16#CB, V/float>>;
+enc_msgpack(V) when is_atom(V) -> enc_msgpack_str(atom_to_binary(V));
+enc_msgpack(V) when is_integer(V), V >= 0 ->
+    if
+        V >= 0 ->
+            if
+                V < 1 bsl 7 -> V;
+                V < 1 bsl 8 -> <<16#CC, V:1/unit:8>>;
+                V < 1 bsl 16 -> <<16#CD, V:2/unit:8>>;
+                V < 1 bsl 32 -> <<16#CE, V:4/unit:8>>;
+                V < 1 bsl 64 -> <<16#CF, V:8/unit:8>>;
+                true -> enc_msgpack_str(integer_to_binary(V))
+            end;
+        true ->
+            if
+                V >= -1 bsl 5 -> <<2#111:3, V:5>>;
+                V >= -1 bsl 7 -> <<16#D0, V:1/unit:8>>;
+                V >= -1 bsl 15 -> <<16#D1, V:2/unit:8>>;
+                V >= -1 bsl 31 -> <<16#D2, V:4/unit:8>>;
+                V >= -1 bsl 63 -> <<16#D3, V:8/unit:8>>;
+                true -> enc_msgpack_str(integer_to_binary(V))
+            end
+    end;
+enc_msgpack(M) when is_map(M) ->
+    [case map_size(M) of
+         S when S < 1 bsl 4 -> 16#80 bor S;
+         S when S < 1 bsl 16 -> <<16#DE, S:2/unit:8>>;
+         S -> <<16#DF, S:4/unit:8>>
+     end|maps:fold(fun(K, V, A) -> [enc_msgpack(K), enc_msgpack(V)|A] end, [], M)];
+enc_msgpack(V) when is_tuple(V) -> enc_msgpack_list(tuple_to_list(V)).
+
+enc_msgpack_str(V) ->
+    case byte_size(V) of
+        S when S < 1 bsl 5 -> [2#10100000 bor S, V];
+        S when S < 1 bsl 8 -> [16#D9, S, V];
+        S when S < 1 bsl 16 -> [<<16#DA, S:2/unit:8>>, V];
+        S -> [<<16#DB, S:4/unit:8>>, V]
+    end.
+
+enc_msgpack_list(V) ->
+    case lists:mapfoldl(fun(E, C) -> {enc_msgpack(E), C + 1} end, 0, V) of
+        {A, S} when S < 1 bsl 4 -> [16#90 bor S|A];
+        {A, S} when S < 1 bsl 16 -> [<<16#DC, S:2/unit:8>>|A];
+        {A, S} -> [<<16#DD, S:4/unit:8>>|A]
+    end.
