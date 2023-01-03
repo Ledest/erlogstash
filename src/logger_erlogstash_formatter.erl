@@ -6,6 +6,9 @@
 -define(DEFAULT_FORMAT, json).
 -define(DEFAULT_TIMESTAMP, iso8601).
 
+-define(VALID_FORMAT, [json, json_line, msgpack]).
+-define(VALID_TIMESRAMP, [iso8601, unix_ms, unix]).
+
 -type format() :: json | json_line | msgpack.
 -type timestamp_format() :: iso8601 | unix_ms | unix.
 -type value() :: null | boolean() | atom() | binary() | number() | [value()] | #{atom() => value()}.
@@ -13,8 +16,7 @@
 -type msg() :: {io:format(), [term()]} | {report, logger:report()} | {string, unicode:chardata()}.
 
 -spec check_config(Config::logger_formatter:config()) -> ok | {error, term()}.
-check_config(#{format := F}) when F =/= json, F =/= json_line, F =/= msgpack -> {error, {format, F}};
-check_config(_) -> ok.
+check_config(Config) -> check_config(Config, [{format, ?VALID_FORMAT}, {timestamp, ?VALID_TIMESRAMP}]).
 
 -spec format(LogEvent::logger:log_event(), Config::logger_formatter:config()) -> unicode:chardata().
 format(#{level := Level, msg := Msg, meta := #{time := T} = Meta}, Config) ->
@@ -26,6 +28,18 @@ format(#{level := Level, msg := Msg, meta := #{time := T} = Meta}, Config) ->
            maps:get(format, Config, ?DEFAULT_FORMAT)).
 
 %% internal functions
+
+-spec check_config(Config::logger_formatter:config(), [{atom(), list()}]) -> ok | {error, term()}.
+check_config(Config, [{K, L}|T]) ->
+    case Config of
+        #{K := V} ->
+            case lists:member(V, L) of
+                true -> check_config(Config, T);
+                _false -> {error, {K, V}}
+            end;
+        _ -> check_config(Config, T)
+    end;
+check_config(_, []) -> ok.
 
 -spec msg(Msg::msg(), Meta::logger:metadata()) -> unicode:chardata().
 msg({report, Report}, #{report_cb := Fun}) when is_function(Fun, 2) -> Fun(Report, #{single_line => true});
