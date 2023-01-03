@@ -51,6 +51,6 @@ Or/and configure `logger`:
 ## Features
 
   * outputs: `tcp`, `udp`, `file`
-  * formats: `json`, `msgpack`
+  * formats: `json`, `json_line`, `msgpack`
 
 [logstash]: https://www.elastic.co/logstash/
