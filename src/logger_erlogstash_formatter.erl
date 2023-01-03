@@ -5,13 +5,13 @@
 
 -define(DEFAULT_FORMAT, json).
 
--type format() :: json|msgpack.
+-type format() :: json | json_line | msgpack.
 -type value() :: null | boolean() | atom() | binary() | number() | [value()] | #{atom() => value()}.
 -type data() :: #{atom() => value()}.
 -type msg() :: {io:format(), [term()]} | {report, logger:report()} | {string, unicode:chardata()}.
 
 -spec check_config(Config::logger_formatter:config()) -> ok | {error, term()}.
-check_config(#{format := F}) when F =/= json, F =/= msgpack -> {error, {format, F}};
+check_config(#{format := F}) when F =/= json, F =/= json_line, F =/= msgpack -> {error, {format, F}};
 check_config(_) -> ok.
 
 -spec format(LogEvent::logger:log_event(), Config::logger_formatter:config()) -> unicode:chardata().
