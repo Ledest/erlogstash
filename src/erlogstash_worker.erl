@@ -158,9 +158,9 @@ send_log(Handle, Payload, Output) ->
     end.
 
 -spec send(Handle::handle(), Payload::erlogstash:payload(), Output::erlogstash:output()) -> ok | {error, term()}.
-send(Handle, Payload, {tcp, _, _, _}) -> ok = gen_tcp:send(Handle, Payload);
-send(Handle, Payload, {udp, Host, Port}) -> ok = gen_udp:send(Handle, Host, Port, Payload);
-send(Handle, Payload, {file, _}) -> ok = file:write(Handle, Payload).
+send(Handle, Payload, {tcp, _, _, _}) -> gen_tcp:send(Handle, Payload);
+send(Handle, Payload, {udp, Host, Port}) -> gen_udp:send(Handle, Host, Port, Payload);
+send(Handle, Payload, {file, _}) -> file:write(Handle, Payload).
 
 %% Buffer to big, cycle!
 -spec reconnect_buf_queue(Payload::erlogstash:payload(), init()) -> init().
