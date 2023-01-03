@@ -25,6 +25,4 @@ config(#{formatter := M} = HConfig) -> HConfig#{formatter := {M, fconfig(#{}, HC
 config(HConfig) -> HConfig#{formatter => {logger_erlogstash_formatter, fconfig(#{}, HConfig)}}.
 
 -spec fconfig(FConfig::logger:formatter_config(), HConfig::logger:handler_config()) -> logger:formatter_config().
-fconfig(#{format := _} = FConfig, _HConfig) -> FConfig;
-fconfig(FConfig, #{format := F} = _HConfig) -> FConfig#{format => F};
-fconfig(FConfig, _HConfig) -> FConfig.
+fconfig(FConfig, HConfig) -> maps:merge(maps:with([format, timestamp], HConfig), FConfig).
