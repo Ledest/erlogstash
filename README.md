@@ -36,7 +36,7 @@ Or/and configure `logger`:
                 format => json_line
             }},
             {handler, logstash2, logger_erlogstash_h, #{
-                output => {tcp, {172,22,160,1}, 5000},
+                output => {tcp, "localhost", 5001},
                 format => msgpack
             }},
             {handler, logstash2, logger_erlogstash_h, #{
