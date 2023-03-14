@@ -7,7 +7,7 @@
 -define(DEFAULT_TIMESTAMP, iso8601).
 
 -define(VALID_FORMAT, [json, json_line, msgpack]).
--define(VALID_TIMESRAMP, [iso8601, unix_ms, unix]).
+-define(VALID_TIMESTAMP, [iso8601, unix_ms, unix]).
 
 -type format() :: json | json_line | msgpack.
 -type timestamp_format() :: iso8601 | unix_ms | unix.
@@ -16,7 +16,7 @@
 -type msg() :: {io:format(), [term()]} | {report, logger:report()} | {string, unicode:chardata()}.
 
 -spec check_config(Config::logger_formatter:config()) -> ok | {error, term()}.
-check_config(Config) -> check_config(Config, [{format, ?VALID_FORMAT}, {timestamp, ?VALID_TIMESRAMP}]).
+check_config(Config) -> check_config(Config, [{format, ?VALID_FORMAT}, {timestamp, ?VALID_TIMESTAMP}]).
 
 -spec format(LogEvent::logger:log_event(), Config::logger_formatter:config()) -> unicode:chardata().
 format(#{level := Level, msg := Msg, meta := #{time := T} = Meta}, Config) ->
