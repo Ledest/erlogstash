@@ -2,6 +2,6 @@ case erlang:function_exported(rebar3, main, 1) of
     true -> CONFIG;
     false ->
         lists:keyreplace(deps, 1, CONFIG,
-                         {deps, [{jsone, {git, "https://github.com/sile/jsone.git", {tag, "1.7.0"}}},
+                         {deps, [{jsone, {git, "https://github.com/sile/jsone.git", {tag, "1.8.0"}}},
                                  {msgpack, {git, "https://github.com/msgpack/msgpack-erlang", {branch, "master"}}}]})
 end.

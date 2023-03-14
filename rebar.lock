@@ -1,12 +1,12 @@
 {"1.2.0",
-[{<<"jsone">>,{pkg,<<"jsone">>,<<"1.7.0">>},0},
+[{<<"jsone">>,{pkg,<<"jsone">>,<<"1.8.0">>},0},
  {<<"msgpack">>,
   {git,"https://github.com/msgpack/msgpack-erlang",
-       {ref,"f1e1b98a5fc5fa8ea72bff834f145c7d0854c027"}},
+       {ref,"0dea2a4fd59a6e278f59bc0c65c2a654f4561e53"}},
   0}]}.
 [
 {pkg_hash,[
- {<<"jsone">>, <<"1E3BD7D5DD44BB2EB0797DDDEA1CBF2DDAB8D9F29E499A467CA171C23F5984EA">>}]},
+ {<<"jsone">>, <<"347FF1FA700E182E1F9C5012FA6D737B12C854313B9AE6954CA75D3987D6C06D">>}]},
 {pkg_hash_ext,[
- {<<"jsone">>, <<"A3A33712EE6BC8BE10CFA21C7C425A299DE4C5A8533F9F931E577A6D0E8F5DBD">>}]}
+ {<<"jsone">>, <<"08560B78624A12E0B5E7EC0271EC8CA38EF51F63D84D84843473E14D9B12618C">>}]}
 ].
