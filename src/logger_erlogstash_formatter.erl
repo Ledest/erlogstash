@@ -73,14 +73,9 @@ value(L) when is_list(L) ->
     end;
 value(T) when is_tuple(T) -> lists:map(fun value/1, tuple_to_list(T));
 value(F) when is_function(F) ->
-    I = erlang:fun_info(F),
-    case lists:keyfind(type, 1, I) of
-        {_, external} -> unicode:characters_to_binary(erlang:fun_to_list(F));
-        _ ->
-            {_, M} = lists:keyfind(module, 1, I),
-            {_, N} = lists:keyfind(name, 1, I),
-            {_, A} = lists:keyfind(arity, 1, I),
-            <<"fun ", (mfa(M, N, A))/binary>>
+    case maps:from_list(erlang:fun_info(F)) of
+        #{type := external} -> unicode:characters_to_binary(erlang:fun_to_list(F));
+        #{module := M, name := N, arity := A} -> <<"fun ", (mfa(M, N, A))/binary>>
     end.
 
 -spec mfa(M::module(), F::atom(), A::non_neg_integer()) -> binary().
