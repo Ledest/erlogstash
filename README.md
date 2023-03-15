@@ -33,7 +33,7 @@ Or/and configure `logger`:
         {logger, [
             {handler, logstash1, logger_erlogstash_h, #{
                 output => {file, "erlogstash.log"},
-                format => json_line
+                format => json_lines
             }},
             {handler, logstash2, logger_erlogstash_h, #{
                 output => {tcp, "localhost", 5001},
@@ -51,6 +51,6 @@ Or/and configure `logger`:
 ## Features
 
   * outputs: `tcp`, `udp`, `file`
-  * formats: `json`, `json_line`, `msgpack`
+  * formats: `json`, `json_lines`, `msgpack`
 
 [logstash]: https://www.elastic.co/logstash/

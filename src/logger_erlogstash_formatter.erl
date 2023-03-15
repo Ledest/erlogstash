@@ -6,10 +6,10 @@
 -define(DEFAULT_FORMAT, json).
 -define(DEFAULT_TIMESTAMP, iso8601).
 
--define(VALID_FORMAT, [json, json_line, msgpack]).
+-define(VALID_FORMAT, [json, json_lines, msgpack]).
 -define(VALID_TIMESTAMP, [iso8601, unix_ms, unix]).
 
--type format() :: json | json_line | msgpack.
+-type format() :: json | json_lines | msgpack.
 -type timestamp_format() :: iso8601 | unix_ms | unix.
 -type value() :: null | boolean() | atom() | binary() | number() | [value()] | #{atom() => value()}.
 -type data() :: #{atom() => value()}.
@@ -93,5 +93,5 @@ timestamp(T, _) -> T.
 
 -spec encode(Data::data(), Format::format()) -> iodata().
 encode(Data, json) -> jsone:encode(Data, [undefined_as_null]);
-encode(Data, json_line) -> [jsone:encode(Data, [undefined_as_null]), $\n];
+encode(Data, json_lines) -> [jsone:encode(Data, [undefined_as_null]), $\n];
 encode(Data, msgpack) -> msgpack:pack(Data, [{pack_str, none}]).
