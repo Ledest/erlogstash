@@ -92,6 +92,6 @@ timestamp(T, iso8601) ->
 timestamp(T, _) -> T.
 
 -spec encode(Data::data(), Format::format()) -> iodata().
-encode(Data, json) -> jsone:encode(Data);
-encode(Data, json_line) -> [encode(Data, json), $\n];
+encode(Data, json) -> jsone:encode(Data, [undefined_as_null]);
+encode(Data, json_line) -> [jsone:encode(Data, [undefined_as_null]), $\n];
 encode(Data, msgpack) -> msgpack:pack(Data, [{pack_str, none}]).
