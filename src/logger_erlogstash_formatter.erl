@@ -67,7 +67,7 @@ value(P) when is_port(P) -> list_to_binary(port_to_list(P));
 value(R) when is_reference(R) -> list_to_binary(ref_to_list(R));
 value(M) when is_map(M) -> maps:map(fun(_, V) -> value(V) end, M);
 value(L) when is_list(L) ->
-    case io_lib:char_list(L) of
+    case io_lib:printable_unicode_list(L) of
         true -> unicode:characters_to_binary(L);
         _false -> lists:map(fun value/1, L)
     end;
