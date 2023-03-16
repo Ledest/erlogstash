@@ -48,7 +48,7 @@ msg({report, Report}, #{report_cb := Fun}) when is_function(Fun, 1) ->
     io_lib:format(F, A);
 msg({report, Report}, _) ->
     {F, A} = logger:format_report(Report),
-    io_lib:format(F, A);
+    string:trim(re:replace(io_lib:format(F, A), <<",?\r?\n *">>, ", ", [global, unicode]), leading);
 msg({string, D}, _) -> D;
 msg({F, A}, _) -> io_lib:format(F, A).
 
