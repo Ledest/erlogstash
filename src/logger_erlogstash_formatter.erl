@@ -42,11 +42,16 @@ check_config(Config, [{K, L}|T]) ->
     end;
 check_config(_, []) -> ok.
 
+-spec add_tags(M::map(), logger_formatter:config()) -> map().
 add_tags(M, #{tags := T}) -> add_tags_(M, T);
 add_tags(M, _) -> M.
 
+-spec add_tags_(M::map(), map()|[{_, _}]) -> map().
 add_tags_(M, T) when is_map(T) -> maps:merge(M, T);
-add_tags_(M, [{_, _}|_] = T) -> maps:merge(M, maps:from_list(T));
+add_tags_(M, T) when is_list(T) ->
+    lists:foldl(fun({K, V}, A) -> A#{K => V};
+                   (K, A) -> A#{K => true}
+                end, M, T);
 add_tags_(M, _) -> M.
 
 -spec msg(Msg::msg(), Meta::logger:metadata()) -> unicode:chardata().
