@@ -21,10 +21,10 @@ log(LogEvent, #{id := N, formatter := {M, FC}}) -> erlogstash:send(N, M:format(L
 %% internal functions
 -spec config(HConfig::logger:handler_config()) -> logger:handler_config().
 config(#{formatter := {logger_formatter, _}} = HConfig) ->
-    HConfig#{formatter := {logger_erlogstash_formatter, fconfig(#{}, HConfig)}};
-config(#{formatter := {M, FConfig}} = HConfig) -> HConfig#{formatter := {M, fconfig(FConfig, HConfig)}};
-config(#{formatter := M} = HConfig) -> HConfig#{formatter := {M, fconfig(#{}, HConfig)}};
-config(HConfig) -> HConfig#{formatter => {logger_erlogstash_formatter, fconfig(#{}, HConfig)}}.
+    HConfig#{formatter := {logger_erlogstash_formatter, fconfig(HConfig, #{})}};
+config(#{formatter := {M, FConfig}} = HConfig) -> HConfig#{formatter := {M, fconfig(HConfig, FConfig)}};
+config(#{formatter := M} = HConfig) -> HConfig#{formatter := {M, fconfig(HConfig, #{})}};
+config(HConfig) -> HConfig#{formatter => {logger_erlogstash_formatter, fconfig(HConfig, #{})}}.
 
--spec fconfig(FConfig::logger:formatter_config(), HConfig::logger:handler_config()) -> logger:formatter_config().
-fconfig(FConfig, HConfig) -> maps:merge(maps:with(?VALID_CONFIG_KEYS, HConfig), FConfig).
+-spec fconfig(HConfig::logger:handler_config(), FConfig::logger:formatter_config()) -> logger:formatter_config().
+fconfig(HConfig, FConfig) -> maps:merge(maps:with(?VALID_CONFIG_KEYS, HConfig), FConfig).
