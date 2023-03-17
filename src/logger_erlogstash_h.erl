@@ -27,4 +27,6 @@ config(#{formatter := M} = HConfig) -> HConfig#{formatter := {M, fconfig(HConfig
 config(HConfig) -> HConfig#{formatter => {logger_erlogstash_formatter, fconfig(HConfig, #{})}}.
 
 -spec fconfig(HConfig::logger:handler_config(), FConfig::logger:formatter_config()) -> logger:formatter_config().
+fconfig(#{count := true} = HConfig, FConfig) ->
+    maps:merge(maps:with(?VALID_CONFIG_KEYS, HConfig), FConfig#{count => atomics:new(1, [{signed, false}])});
 fconfig(HConfig, FConfig) -> maps:merge(maps:with(?VALID_CONFIG_KEYS, HConfig), FConfig).

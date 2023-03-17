@@ -20,7 +20,7 @@ check_config(Config) -> check_config(Config, [{format, ?VALID_FORMAT}, {timestam
 
 -spec format(LogEvent::logger:log_event(), Config::logger_formatter:config()) -> unicode:chardata().
 format(#{level := Level, msg := Msg, meta := #{time := T} = Meta}, Config) ->
-    M = meta(add_tags(Meta, Config)),
+    M = add_count(meta(add_tags(Meta, Config)), Config),
     encode(M#{level => Level,
               type => erlogstash,
               '@timestamp' => timestamp(T, maps:get(timestamp, Config, ?DEFAULT_TIMESTAMP)),
@@ -41,6 +41,15 @@ check_config(Config, [{K, L}|T]) ->
         _ -> check_config(Config, T)
     end;
 check_config(_, []) -> ok.
+
+-spec add_count(M::map(), logger_formatter:config()) -> map().
+add_count(M, #{count := R}) when is_reference(R) ->
+    try atomics:add_get(R, 1, 1) of
+        C -> M#{count => C}
+    catch
+        _:_ -> M
+    end;
+add_count(M, _) -> M.
 
 -spec add_tags(M::map(), logger_formatter:config()) -> map().
 add_tags(M, #{tags := T}) -> add_tags_(M, T);
