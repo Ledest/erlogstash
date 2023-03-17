@@ -15,7 +15,7 @@ adding_handler(#{id := N, output := Output} = HConfig) ->
 -spec removing_handler(HConfig::logger:handler_config()) -> ok.
 removing_handler(#{id := N}) -> erlogstash:stop_worker(N).
 
--spec log(LogEvent::logger:log_event(), HConfig::logger:handler_config()) -> any().
+-spec log(LogEvent::logger:log_event(), HConfig::logger:handler_config()) -> ok.
 log(LogEvent, #{id := N, formatter := {M, FC}}) -> erlogstash:send(N, M:format(LogEvent, FC)).
 
 %% internal functions
