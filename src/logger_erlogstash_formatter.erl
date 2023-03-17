@@ -20,11 +20,12 @@ check_config(Config) -> check_config(Config, [{format, ?VALID_FORMAT}, {timestam
 
 -spec format(LogEvent::logger:log_event(), Config::logger_formatter:config()) -> unicode:chardata().
 format(#{level := Level, msg := Msg, meta := #{time := T} = Meta}, Config) ->
-    encode((meta(Meta))#{level => Level,
-                         type => erlogstash,
-                         '@timestamp' => timestamp(T, maps:get(timestamp, Config, ?DEFAULT_TIMESTAMP)),
-                         node => node(),
-                         message => unicode:characters_to_binary(msg(Msg, Meta))},
+    M = meta(add_tags(Meta, Config)),
+    encode(M#{level => Level,
+              type => erlogstash,
+              '@timestamp' => timestamp(T, maps:get(timestamp, Config, ?DEFAULT_TIMESTAMP)),
+              node => node(),
+              message => unicode:characters_to_binary(msg(Msg, Meta))},
            maps:get(format, Config, ?DEFAULT_FORMAT)).
 
 %% internal functions
@@ -40,6 +41,13 @@ check_config(Config, [{K, L}|T]) ->
         _ -> check_config(Config, T)
     end;
 check_config(_, []) -> ok.
+
+add_tags(M, #{tags := T}) -> add_tags_(M, T);
+add_tags(M, _) -> M.
+
+add_tags_(M, T) when is_map(T) -> maps:merge(M, T);
+add_tags_(M, [{_, _}|_] = T) -> maps:merge(M, maps:from_list(T));
+add_tags_(M, _) -> M.
 
 -spec msg(Msg::msg(), Meta::logger:metadata()) -> unicode:chardata().
 msg({report, Report}, #{report_cb := Fun}) when is_function(Fun, 2) -> Fun(Report, #{single_line => true});
