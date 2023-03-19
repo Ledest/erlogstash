@@ -54,3 +54,8 @@ Or/and configure `logger`:
   * formats: `json`, `json_lines`, `msgpack`
 
 [logstash]: https://www.elastic.co/logstash/
+
+## Warning
+
+Logstash TCP output is quiet stupid and ugly.
+So it's a bad idea to use ```tcp``` output with a format other than ```json_lines```.
