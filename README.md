@@ -33,15 +33,18 @@ Or/and configure `logger`:
         {logger, [
             {handler, logstash1, logger_erlogstash_h, #{
                 output => {file, "erlogstash.log"},
-                format => json_lines
+                % json is default format
             }},
             {handler, logstash2, logger_erlogstash_h, #{
                 output => {tcp, "localhost", 5001},
-                format => msgpack
+                tags => #{app => myapp, {mytag, "my_tag_value"}},
+                format => json_lines
             }},
             {handler, logstash2, logger_erlogstash_h, #{
                 output => {udp, {172,22,160,1}, 5000}
-                % json is default format
+                count => true,
+                tags => [{app, myapp}, {mytag, <<"MY_TAG_VALUE">>}],
+                format => msgpack
             }}
         ]}
     ]}
