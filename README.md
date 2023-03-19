@@ -37,7 +37,7 @@ Or/and configure `logger`:
             }},
             {handler, logstash2, logger_erlogstash_h, #{
                 output => {tcp, "localhost", 5001},
-                tags => #{app => myapp, {mytag, "my_tag_value"}},
+                tags => #{app => myapp, mytag => "my_tag_value"},
                 format => json_lines
             }},
             {handler, logstash2, logger_erlogstash_h, #{
