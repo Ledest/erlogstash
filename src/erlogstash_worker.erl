@@ -79,8 +79,8 @@ handle_cast({log, Payload}, #state{handle = Handle, output = Output} = State) ->
     {noreply,
      case send_log(Handle, Payload, Output) of
          ok -> State;
-         _error ->
-             close(Handle, Output),
+         {error, Reason} ->
+             Reason =:= closed orelse close(Handle, Output),
              self() ! {reconnect, Output},
              #init{count = 1, payload = [Payload]}
      end};
