@@ -74,7 +74,11 @@ handle_call(_Request, _From, State) -> {reply, ok, State}.
 %% @private
 -spec handle_cast(term(), state() | init()) -> {stop, normal, state()} | {noreply, state()|init()}.
 handle_cast(stop, State) -> {stop, normal, State};
-handle_cast({log, Payload}, #init{} = Init) -> {noreply, reconnect_buf_queue(Payload, Init)};
+handle_cast({log, Payload}, #init{count = N}) when N >= 500 -> % Buffer to big, cycle!
+    error_logger:warning_msg("Drop ~B log events", [N]),
+    {noreply, #init{count = 1, payload = [Payload]}};
+handle_cast({log, Payload}, #init{count = N, payload = Payloads}) ->
+    {noreply, #init{count = N + 1, payload = [Payload|Payloads]}};
 handle_cast({log, Payload}, #state{handle = Handle, output = Output} = State) ->
     {noreply,
      case send_log(Handle, Payload, Output) of
@@ -172,14 +176,6 @@ send(Handle, Payload, {udp, Host, Port}) ->
         R -> R
     end;
 send(Handle, Payload, {file, _}) -> file:write(Handle, Payload).
-
-%% Buffer to big, cycle!
--spec reconnect_buf_queue(Payload::erlogstash:payload(), init()) -> init().
-reconnect_buf_queue(Payload, #init{count = N}) when N >= 500 ->
-    error_logger:warning_msg("Drop ~B log events", [N]),
-    #init{count = 1, payload = [Payload]};
-reconnect_buf_queue(Payload, #init{count = N, payload = Payloads}) ->
-    #init{count = N + 1, payload = [Payload|Payloads]}.
 
 -spec drain(Handle::handle(), [erlogstash:payload()], Output::erlogstash:output()) -> ok.
 drain(Handle, [P|Ps], Output) ->
