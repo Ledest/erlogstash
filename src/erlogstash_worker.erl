@@ -97,13 +97,13 @@ handle_info({reconnect, Output}, #init{} = Init) ->
          {error, nxdomain} ->
              %% Keep a deliberately long timeout here to avoid thundering herds
              %% against the DNS service
-             timer:send_after(timer:minutes(1), self(), {reconnect, Output}),
+             timer:send_after(timer:minutes(1), {reconnect, Output}),
              Init;
          {error, Reason} ->
              %% Unknown errors should output warnings to us
              Reason =/= timeout andalso Reason =/= econnrefused andalso
                  error_logger:error_msg("Trying to connect to logstash had error reason ~p", [Reason]),
-             timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Output}),
+             timer:send_after(?RECONNECT_TIMEOUT, {reconnect, Output}),
              Init
      end};
 handle_info({tcp, S, _Data}, State) ->
@@ -111,7 +111,7 @@ handle_info({tcp, S, _Data}, State) ->
     {noreply, State};
 handle_info({tcp_closed, S}, #state{output = Output, handle = S}) ->
     error_logger:error_msg("Connection ~p closed", [Output]),
-    timer:send_after(?RECONNECT_TIMEOUT, self(), {reconnect, Output}),
+    timer:send_after(?RECONNECT_TIMEOUT, {reconnect, Output}),
     {noreply, #init{}};
 handle_info({udp, S, _IP, _Port, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
