@@ -150,7 +150,7 @@ connect({udp, _, _} = Output) ->
         {error, _} = R -> R
     end;
 connect({file, Path} = Output) ->
-    case file:open(Path, [append]) of
+    case file:open(Path, [append, raw]) of
         {ok, Fd} -> {ok, #state{output = Output, handle = Fd}};
         {error, _} = R -> R
     end.
