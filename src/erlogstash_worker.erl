@@ -145,7 +145,7 @@ connect({tcp, Host, Port, Timeout} = Output) ->
         {error, _} = R -> R
     end;
 connect({udp, _, _} = Output) ->
-    case gen_udp:open(0, [binary]) of
+    case gen_udp:open(0, [binary, {active, once}]) of
         {ok, Socket} -> {ok, #state{output = Output, handle = Socket}};
         {error, _} = R -> R
     end;
