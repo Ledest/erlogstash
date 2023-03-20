@@ -25,7 +25,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start/1, start_link/1, start_link/2, stop/1]).
+-export([start/1, start_link/1, start_link/2, stop/1, send/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
@@ -58,6 +58,9 @@ start_link({T, _} = Worker, Output) when T =:= local; T =:= global ->
 
 -spec stop(Worker::erlogstash:worker()) -> ok.
 stop(Worker) -> gen_server:cast(Worker, stop).
+
+-spec send(Worker::erlogstash:worker(), Payload::erlogstash:payload()) -> ok.
+send(Worker, Payload) -> gen_server:cast(Worker, {log, Payload}).
 
 %% gen_server callbacks
 
