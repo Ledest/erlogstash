@@ -43,7 +43,7 @@
 %% API
 
 -spec send(Worker::worker(), Payload::payload()) -> ok.
-send(Worker, Payload) -> gen_server:cast(Worker, {log, Payload}).
+send(Worker, Payload) -> erlogstash_worker:send(Worker, Payload).
 
 %% @doc
 %% Starts the supervisor
@@ -59,7 +59,7 @@ start_worker(Output) -> supervisor:start_child(erlogstash_sup, [Output]).
 start_worker(Worker, Output) -> supervisor:start_child(erlogstash_sup, [Worker, Output]).
 
 -spec stop_worker(Worker::worker()) -> ok.
-stop_worker(Worker) -> gen_server:cast(Worker, stop).
+stop_worker(Worker) -> erlogstash_worker:stop(Worker).
 
 %% application callbacks
 
