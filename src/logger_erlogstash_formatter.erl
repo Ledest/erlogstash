@@ -113,7 +113,10 @@ timestamp(T, iso8601) ->
     list_to_binary(calendar:system_time_to_rfc3339(timestamp(T, unix_ms), [{unit, millisecond}, {offset, "Z"}]));
 timestamp(T, _) -> T.
 
+-define(JSONE_OPTS, [native_forward_slash, undefined_as_null]).
+-define(MSGPACK_OPTS, [{pack_str, none}]).
+
 -spec encode(Data::data(), Format::format()) -> iodata().
-encode(Data, json) -> jsone:encode(Data, [undefined_as_null]);
-encode(Data, json_lines) -> [jsone:encode(Data, [undefined_as_null]), $\n];
-encode(Data, msgpack) -> msgpack:pack(Data, [{pack_str, none}]).
+encode(Data, json) -> jsone:encode(Data, ?JSONE_OPTS);
+encode(Data, json_lines) -> [jsone:encode(Data, ?JSONE_OPTS), $\n];
+encode(Data, msgpack) -> msgpack:pack(Data, ?MSGPACK_OPTS).
