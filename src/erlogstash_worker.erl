@@ -30,8 +30,8 @@
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
--define(DEFAULT_TIMEOUT, timer:seconds(5)).
--define(RECONNECT_TIMEOUT, timer:seconds(5)).
+-define(DEFAULT_TIMEOUT, 5000). % milliseconds
+-define(RECONNECT_TIMEOUT, 5). % seconds
 
 -type handle() :: gen_tcp:socket()|gen_udp:socket()|file:fd().
 
@@ -64,7 +64,7 @@ stop(Worker) -> gen_server:cast(Worker, stop).
 %% @private
 -spec init(erlogstash:output()) -> {ok, init()}.
 init(Output) ->
-    self() ! {reconnect, Output},
+    reconnect(Output),
     {ok, #init{}}.
 
 %% @private
@@ -81,7 +81,7 @@ handle_cast({log, Payload}, #state{handle = Handle, output = Output} = State) ->
          ok -> State;
          {error, Reason} ->
              Reason =:= closed orelse close(Handle, Output),
-             self() ! {reconnect, Output},
+             reconnect(Output),
              #init{count = 1, payload = [Payload]}
      end};
 handle_cast(_Msg, State) -> {noreply, State}.
@@ -95,15 +95,14 @@ handle_info({reconnect, Output}, #init{} = Init) ->
              drain(H, Init#init.payload, O),
              State;
          {error, nxdomain} ->
-             %% Keep a deliberately long timeout here to avoid thundering herds
-             %% against the DNS service
-             timer:send_after(timer:minutes(1), {reconnect, Output}),
+             %% Keep a deliberately long timeout here to avoid thundering herds against the DNS service
+             reconnect(60, Output),
              Init;
          {error, Reason} ->
              %% Unknown errors should output warnings to us
              Reason =/= timeout andalso Reason =/= econnrefused andalso
                  error_logger:error_msg("Trying to connect to logstash had error reason ~p", [Reason]),
-             timer:send_after(?RECONNECT_TIMEOUT, {reconnect, Output}),
+             reconnect(?RECONNECT_TIMEOUT, Output),
              Init
      end};
 handle_info({tcp, S, _Data}, State) ->
@@ -111,7 +110,7 @@ handle_info({tcp, S, _Data}, State) ->
     {noreply, State};
 handle_info({tcp_closed, S}, #state{output = Output, handle = S}) ->
     error_logger:error_msg("Connection ~p closed", [Output]),
-    timer:send_after(?RECONNECT_TIMEOUT, {reconnect, Output}),
+    reconnect(?RECONNECT_TIMEOUT, Output),
     {noreply, #init{}};
 handle_info({udp, S, _IP, _Port, _Data}, State) ->
     inet:setopts(S, [{active, once}]),
@@ -122,6 +121,14 @@ handle_info(_Info, State) -> {noreply, State}.
 terminate(_Reason, #state{handle = Handle, output = Output}) -> close(Handle, Output).
 
 %% internal functions
+-spec reconnect(Output) -> {reconnect, Output} when Output::erlogstash:output().
+reconnect(Output) -> self() ! {reconnect, Output}.
+
+-spec reconnect(T::pos_integer(), Output::erlogstash:output()) -> reference().
+reconnect(T, Output) -> send_after(T, {reconnect, Output}).
+
+-spec send_after(T::pos_integer(), M::term()) -> reference().
+send_after(T, M) -> erlang:send_after(timer:seconds(T), self(), M).
 
 -spec connect(Output::erlogstash:output()) -> {ok, state()} | {error, term()}.
 connect({tcp, Host, Port}) -> connect({tcp, Host, Port, ?DEFAULT_TIMEOUT});
