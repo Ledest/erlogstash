@@ -38,12 +38,14 @@ Or/and configure `logger`:
             {handler, logstash2, logger_erlogstash_h, #{
                 output => {tcp, "localhost", 5001},
                 tags => #{app => myapp, mytag => "my_tag_value"},
+                timestamp => iso8601, % default
                 format => json_lines
             }},
             {handler, logstash2, logger_erlogstash_h, #{
                 output => {udp, {172,22,160,1}, 5000}
                 count => true,
                 tags => [{app, myapp}, {mytag, <<"MY_TAG_VALUE">>}],
+                timestamp => unix_ms,
                 format => msgpack
             }}
         ]}
