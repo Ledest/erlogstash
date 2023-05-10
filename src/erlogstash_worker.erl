@@ -36,10 +36,11 @@
 -type handle() :: gen_tcp:socket()|gen_udp:socket()|file:fd().
 
 -record(state, {handle :: handle()|undefined, output :: erlogstash:output()}).
--record(init, {count = 0 :: non_neg_integer(), payload = [] :: erlogstash:payload()}).
+-record(pool, {count = 0 :: non_neg_integer(), payload = [] :: erlogstash:payload()}).
 
 -type state() :: #state{}.
--type init() :: #init{}.
+-type pool() :: #pool{}.
+-type state_data() :: state()|pool().
 
 %% API
 
@@ -65,23 +66,23 @@ send(Worker, Payload) -> gen_server:cast(Worker, {log, Payload}).
 %% gen_server callbacks
 
 %% @private
--spec init(erlogstash:output()) -> {ok, init()}.
+-spec init(erlogstash:output()) -> {ok, pool()}.
 init(Output) ->
     reconnect(Output),
-    {ok, #init{}}.
+    {ok, #pool{}}.
 
 %% @private
--spec handle_call(term(), {pid(), term()}, State) -> {reply, ok, State} when State :: state()|init().
+-spec handle_call(term(), {pid(), term()}, State) -> {reply, ok, State} when State :: state_data().
 handle_call(_Request, _From, State) -> {reply, ok, State}.
 
 %% @private
--spec handle_cast(term(), state() | init()) -> {stop, normal, state()} | {noreply, state()|init()}.
+-spec handle_cast(term(), state() | pool()) -> {stop, normal, state()} | {noreply, state_data()}.
 handle_cast(stop, State) -> {stop, normal, State};
-handle_cast({log, Payload}, #init{count = N}) when N >= 500 -> % Buffer to big, cycle!
+handle_cast({log, Payload}, #pool{count = N}) when N >= 500 -> % Buffer to big, cycle!
     error_logger:warning_msg("Drop ~B log events", [N]),
-    {noreply, #init{count = 1, payload = [Payload]}};
-handle_cast({log, Payload}, #init{count = N, payload = Payloads}) ->
-    {noreply, #init{count = N + 1, payload = [Payload|Payloads]}};
+    {noreply, #pool{count = 1, payload = [Payload]}};
+handle_cast({log, Payload}, #pool{count = N, payload = Payloads}) ->
+    {noreply, #pool{count = N + 1, payload = [Payload|Payloads]}};
 handle_cast({log, Payload}, #state{handle = Handle, output = Output} = State) ->
     {noreply,
      case send_log(Handle, Payload, Output) of
@@ -89,17 +90,17 @@ handle_cast({log, Payload}, #state{handle = Handle, output = Output} = State) ->
          {error, Reason} ->
              Reason =:= closed orelse close(Handle, Output),
              reconnect(Output),
-             #init{count = 1, payload = [Payload]}
+             #pool{count = 1, payload = [Payload]}
      end};
 handle_cast(_Msg, State) -> {noreply, State}.
 
 %% @private
--spec handle_info(term(), state()|init()) -> {noreply, state()|init()}.
-handle_info({reconnect, Output}, #init{} = Init) ->
+-spec handle_info(term(), state_data()) -> {noreply, state_data()}.
+handle_info({reconnect, Output}, #pool{} = Init) ->
     {noreply,
      case connect(Output) of
          {ok, #state{handle = H, output = O} = State} ->
-             drain(H, Init#init.payload, O),
+             drain(H, Init#pool.payload, O),
              State;
          {error, nxdomain} ->
              %% Keep a deliberately long timeout here to avoid thundering herds against the DNS service
@@ -118,7 +119,7 @@ handle_info({tcp, S, _Data}, #state{handle = S} = State) ->
 handle_info({tcp_closed, S}, #state{output = Output, handle = S}) ->
     error_logger:error_msg("Connection ~p closed", [Output]),
     reconnect(?RECONNECT_TIMEOUT, Output),
-    {noreply, #init{}};
+    {noreply, #pool{}};
 handle_info({udp, S, _IP, _Port, _Data}, #state{handle = S} = State) ->
     inet:setopts(S, [{active, once}]),
     {noreply, State};
