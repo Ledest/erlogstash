@@ -5,6 +5,7 @@
 
 -define(DEFAULT_FORMAT, json).
 -define(DEFAULT_TIMESTAMP, iso8601).
+-define(DEFAULT_CONFIG, #{timestamp => ?DEFAULT_TIMESTAMP, format => ?DEFAULT_FORMAT}).
 
 -define(VALID_FORMAT, [json, json_lines, msgpack]).
 -define(VALID_TIMESTAMP, [iso8601, unix_ms, unix]).
@@ -20,13 +21,11 @@ check_config(Config) -> check_config(Config, [{format, ?VALID_FORMAT}, {timestam
 
 -spec format(LogEvent::logger:log_event(), Config::logger_formatter:config()) -> unicode:chardata().
 format(#{level := Level, msg := Msg, meta := #{time := T} = Meta}, Config) ->
+    #{timestamp := Timestamp, format := Format} = maps:merge(?DEFAULT_CONFIG, Config),
     M = add_count(meta(add_tags(Meta, Config)), Config),
-    encode(M#{level => Level,
-              type => erlogstash,
-              '@timestamp' => timestamp(T, maps:get(timestamp, Config, ?DEFAULT_TIMESTAMP)),
-              node => node(),
+    encode(M#{level => Level, type => erlogstash, '@timestamp' => timestamp(T, Timestamp), node => node(),
               message => unicode:characters_to_binary(msg(Msg, Meta))},
-           maps:get(format, Config, ?DEFAULT_FORMAT)).
+           Format).
 
 %% internal functions
 
