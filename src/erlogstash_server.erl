@@ -20,7 +20,7 @@
 
 %% @author Chap Lovejoy <chaplovejoy@gmail.com>
 
--module(erlogstash_worker).
+-module(erlogstash_server).
 
 -behaviour(gen_server).
 

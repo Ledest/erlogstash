@@ -43,7 +43,7 @@
 %% API
 
 -spec send(Worker::worker(), Payload::payload()) -> ok.
-send(Worker, Payload) -> erlogstash_worker:send(Worker, Payload).
+send(Worker, Payload) -> erlogstash_server:send(Worker, Payload).
 
 %% @doc
 %% Starts the supervisor
@@ -59,7 +59,7 @@ start_worker(Output) -> supervisor:start_child(erlogstash_sup, [Output]).
 start_worker(Worker, Output) -> supervisor:start_child(erlogstash_sup, [Worker, Output]).
 
 -spec stop_worker(Worker::worker()) -> ok.
-stop_worker(Worker) -> erlogstash_worker:stop(Worker).
+stop_worker(Worker) -> erlogstash_server:stop(Worker).
 
 %% application callbacks
 
@@ -84,4 +84,4 @@ stop(_) -> ok.
 -spec init([]) -> {ok, {{simple_one_for_one, non_neg_integer(), 1..1000000}, [supervisor:child_spec()]}}.
 init([]) ->
     {ok, {#{strategy => simple_one_for_one, intensity => 50, period => 3600},
-          [#{id => undefined, start => {erlogstash_worker, start_link, []}, restart => transient, shutdown => 2000}]}}.
+          [#{id => undefined, start => {erlogstash_server, start_link, []}, restart => transient, shutdown => 2000}]}}.
