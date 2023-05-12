@@ -66,10 +66,14 @@ send(Worker, Payload) -> gen_server:cast(Worker, {log, Payload}).
 %% gen_server callbacks
 
 %% @private
--spec init(erlogstash:output()) -> {ok, pool()}.
+-spec init(erlogstash:output()) -> {ok, pool()} | {error, {output, term()}}.
 init(Output) ->
-    reconnect(Output),
-    {ok, #pool{}}.
+    case output(Output) of
+        {ok, O} ->
+            reconnect(O),
+            {ok, #pool{}};
+        _error -> {error, {output, Output}}
+    end.
 
 %% @private
 -spec handle_call(term(), {pid(), term()}, State) -> {reply, ok, State} when State :: state_data().
@@ -129,6 +133,13 @@ handle_info(_Info, State) -> {noreply, State}.
 terminate(_Reason, #state{handle = Handle, output = Output}) -> close(Handle, Output).
 
 %% internal functions
+-spec output(Output::erlogstash:output()) -> {ok, erlogstash:output()} | error.
+output({file, _} = Output) -> {ok, Output};
+output({udp, _, _} = Output) -> {ok, Output};
+output({tcp, _, _, _} = Output) -> {ok, Output};
+output({tcp, H, P}) -> {ok, {tcp, H, P, ?DEFAULT_TIMEOUT}};
+output(_) -> error.
+
 -spec reconnect(Output) -> {reconnect, Output} when Output::erlogstash:output().
 reconnect(Output) -> self() ! {reconnect, Output}.
 
@@ -139,7 +150,6 @@ reconnect(T, Output) -> send_after(T, {reconnect, Output}).
 send_after(T, M) -> erlang:send_after(timer:seconds(T), self(), M).
 
 -spec connect(Output::erlogstash:output()) -> {ok, state()} | {error, term()}.
-connect({tcp, Host, Port}) -> connect({tcp, Host, Port, ?DEFAULT_TIMEOUT});
 connect({tcp, Host, Port, Timeout} = Output) ->
     case gen_tcp:connect(Host, Port, [binary, {active, once}, {keepalive, true}], Timeout) of
         {ok, Socket} -> {ok, #state{output = Output, handle = Socket}};
