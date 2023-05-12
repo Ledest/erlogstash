@@ -6,7 +6,7 @@ Application for sending logs to [Logstash][logstash].
 
 Add `erlogstash` to your `rebar.config` deps:
 
-``` erlang
+```erlang
 {deps, [
     {erlogstash, {git, "https://github.com/Ledest/erlogstash.git", {branch, "master"}}}
 ]}.
@@ -14,7 +14,7 @@ Add `erlogstash` to your `rebar.config` deps:
 
 Configure `erlogstash` app with something like this:
 
-``` erlang
+```erlang
 [
     {erlogstash, [
         {outputs, [
@@ -63,4 +63,4 @@ Or/and configure `logger`:
 ## Warning
 
 Logstash TCP output is quiet stupid and ugly.
-So it's a bad idea to use ```tcp``` output with a format other than ```json_lines```.
+So it's a bad idea to use `tcp` output with a format other than `json_lines`.
