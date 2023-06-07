@@ -1,3 +1,5 @@
+[![Build Status](https://github.com/Ledest/erlogstash/actions/workflows/erlang.yml/badge.svg)](https://github.com/Ledest/erlogstash/actions/workflows/erlang.yml/badge.svg)
+
 # erlogstash
 
 Application for sending logs to [Logstash][logstash].
