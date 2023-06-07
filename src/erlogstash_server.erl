@@ -121,7 +121,7 @@ handle_info({tcp, S, _Data}, #state{handle = S} = State) ->
     inet:setopts(S, [{active, once}]),
     {noreply, State};
 handle_info({tcp_closed, S}, #state{output = Output, handle = S}) ->
-    error_logger:error_msg("Connection ~p closed", [Output]),
+    error_logger:error_msg("Erlogstash connection ~p closed", [Output]),
     reconnect(?RECONNECT_TIMEOUT, Output),
     {noreply, #pool{}};
 handle_info({udp, S, _IP, _Port, _Data}, #state{handle = S} = State) ->
