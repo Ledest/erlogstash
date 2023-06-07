@@ -105,6 +105,7 @@ handle_info({reconnect, Output}, #pool{} = Init) ->
      case connect(Output) of
          {ok, #state{handle = H, output = O} = State} ->
              drain(H, Init#pool.payload, O),
+             error_logger:info_msg("Erlogstash connected ~p", [Output]),
              State;
          {error, nxdomain} ->
              %% Keep a deliberately long timeout here to avoid thundering herds against the DNS service
