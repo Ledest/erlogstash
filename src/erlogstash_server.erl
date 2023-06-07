@@ -36,7 +36,7 @@
 -type handle() :: gen_tcp:socket()|gen_udp:socket()|file:fd().
 
 -record(state, {handle :: handle()|undefined, output :: erlogstash:output()}).
--record(pool, {count = 0 :: non_neg_integer(), payload = [] :: erlogstash:payload()}).
+-record(pool, {count = 0 :: non_neg_integer(), payload = [] :: [erlogstash:payload()]}).
 
 -type state() :: #state{}.
 -type pool() :: #pool{}.
