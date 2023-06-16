@@ -4,6 +4,9 @@
   {registered, [erlogstash_sup]},
   {mod, {erlogstash, []}},
   {applications, [kernel, stdlib,
-                  jsone, msgpack]},
+                  % jsone,
+                  thoas,
+                  jsone,
+                  msgpack]},
   {build_tools, [rebar, rebar3]},
   {exclude_paths, ["rebar.lock"]}]}.
