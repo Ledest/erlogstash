@@ -131,7 +131,7 @@ handle_info({udp, S, _IP, _Port, _Data}, #state{handle = S} = State) ->
 handle_info(_Info, State) -> {noreply, State}.
 
 %% @private
--spec terminate(Reason::normal, State::state()|pool()) -> ok | {error, term()}.
+-spec terminate(Reason::normal, State::state_data()) -> ok | {error, term()}.
 terminate(_Reason, #state{handle = Handle, output = Output}) -> close(Handle, Output);
 terminate(_Reason, #pool{}) -> ok.
 
