@@ -158,9 +158,13 @@ connect({tcp, Host, Port, Timeout} = Output) ->
         {ok, Socket} -> {ok, #state{output = Output, handle = Socket}};
         {error, _} = R -> R
     end;
-connect({udp, _, _} = Output) ->
+connect({udp, Host, Port} = Output) ->
     case gen_udp:open(0, [binary, {active, once}]) of
-        {ok, Socket} -> {ok, #state{output = Output, handle = Socket}};
+        {ok, Socket} ->
+            case gen_udp:connect(Socket, Host, Port) of
+                ok -> {ok, #state{output = Output, handle = Socket}};
+                {error, _} = R -> R
+            end;
         {error, _} = R -> R
     end;
 connect({file, Path} = Output) ->
@@ -187,8 +191,8 @@ send_log(Handle, Payload, Output) ->
 
 -spec send(Handle::handle(), Payload::erlogstash:payload(), Output::erlogstash:output()) -> ok | {error, term()}.
 send(Handle, Payload, {tcp, _, _, _}) -> gen_tcp:send(Handle, Payload);
-send(Handle, Payload, {udp, Host, Port}) ->
-    case gen_udp:send(Handle, Host, Port, Payload) of
+send(Handle, Payload, {udp, _, _}) ->
+    case gen_udp:send(Handle, Payload) of
         {error, emsgsize} -> error_logger:error_msg(?MODULE_STRING ": UDP message size ~B", [iolist_size(Payload)]);
         R -> R
     end;
