@@ -100,23 +100,23 @@ handle_cast(_Msg, State) -> {noreply, State}.
 
 %% @private
 -spec handle_info(term(), state_data()) -> {noreply, state_data()}.
-handle_info({reconnect, Output}, #pool{} = Init) ->
+handle_info({reconnect, Output}, #pool{} = Pool) ->
     {noreply,
      case connect(Output) of
          {ok, #state{handle = H, output = O} = State} ->
-             drain(H, Init#pool.payload, O),
+             drain(H, Pool#pool.payload, O),
              error_logger:info_msg("Erlogstash connected ~p", [Output]),
              State;
          {error, nxdomain} ->
              %% Keep a deliberately long timeout here to avoid thundering herds against the DNS service
              reconnect(60, Output),
-             Init;
+             Pool;
          {error, Reason} ->
              %% Unknown errors should output warnings to us
              Reason =/= timeout andalso Reason =/= econnrefused andalso
                  error_logger:error_msg("Trying to connect to logstash had error reason ~p", [Reason]),
              reconnect(?RECONNECT_TIMEOUT, Output),
-             Init
+             Pool
      end};
 handle_info({tcp, S, _Data}, #state{handle = S} = State) ->
     inet:setopts(S, [{active, once}]),
