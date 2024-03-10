@@ -4,7 +4,7 @@
   {registered, [erlogstash_sup]},
   {mod, {erlogstash, []}},
   {applications, [kernel, stdlib,
-                  msgpack,
+                  emsgpack,
                   otpbp]},
   {links, [{"GitHub", "https://github.com/Ledest/erlogstash"}]},
   {licenses, ["MIT"]},

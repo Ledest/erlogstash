@@ -7,9 +7,9 @@ case erlang:function_exported(rebar3, main, 1) of
                                  {deps, lists:map(fun({otpbp, "~> " ++ V}) ->
                                                       {otpbp,
                                                        {git, "https://github.com/Ledest/otpbp.git", {branch, "master"}}};
-                                                     ({msgpack, "~> " ++ V}) ->
-                                                      {msgpack,
-                                                       {git, "https://github.com/msgpack/msgpack-erlang", {tag, V}}};
+                                                     ({emsgpack, "~> " ++ V}) ->
+                                                      {emsgpack,
+                                                       {git, "https://github.com/Ledest/emsgpack", {branch, "master"}}};
                                                      (D) -> D
                                                   end, Deps)});
             _ -> CONFIG

@@ -117,4 +117,4 @@ timestamp(T, _) -> T.
 -spec encode(Data::data(), Format::format()) -> iodata().
 encode(Data, json) -> json:encode(Data);
 encode(Data, json_lines) -> [json:encode(Data), $\n];
-encode(Data, msgpack) -> msgpack:pack(Data, [{pack_str, none}]).
+encode(Data, msgpack) -> emsgpack:encode(Data).
