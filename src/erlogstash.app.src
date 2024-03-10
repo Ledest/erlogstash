@@ -6,5 +6,7 @@
   {applications, [kernel, stdlib,
                   msgpack,
                   otpbp]},
+  {links, [{"GitHub", "https://github.com/Ledest/erlogstash"}]},
+  {licenses, ["MIT"]},
   {build_tools, [rebar, rebar3]},
   {exclude_paths, ["rebar.lock"]}]}.
