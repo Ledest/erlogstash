@@ -2,5 +2,9 @@
 /doc
 /.rebar
 /.eunit
-/_build
 /deps
+/_build
+rebar.lock
+.project
+.kateproject
+erl_crash.dump
