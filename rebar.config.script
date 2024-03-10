@@ -4,8 +4,9 @@ case erlang:function_exported(rebar3, main, 1) of
         case lists:keyfind(deps, 1, CONFIG) of
             {_, Deps} ->
                 lists:keyreplace(deps, 1, CONFIG,
-                                 {deps, lists:map(fun({jsone, "~> " ++ V}) ->
-                                                      {jsone, {git, "https://github.com/sile/jsone.git", {tag, V}}};
+                                 {deps, lists:map(fun({otpbp, "~> " ++ V}) ->
+                                                      {otpbp,
+                                                       {git, "https://github.com/Ledest/otpbp.git", {branch, "master"}}};
                                                      ({msgpack, "~> " ++ V}) ->
                                                       {msgpack,
                                                        {git, "https://github.com/msgpack/msgpack-erlang", {tag, V}}};
