@@ -4,6 +4,8 @@
 
 Application for sending logs to [Logstash][logstash].
 
+Inspired by [lager_logstash].
+
 ## Configuration
 
 Add `erlogstash` to your `rebar.config` deps:
@@ -60,9 +62,10 @@ Or/and configure `logger`:
   * outputs: `tcp`, `udp`, `file`
   * formats: `json`, `json_lines`, `msgpack`
 
-[logstash]: https://www.elastic.co/logstash/
-
 ## Warning
 
 Logstash TCP output is quiet stupid and ugly.
 So it's a bad idea to use `tcp` output with a format other than `json_lines`.
+
+[logstash]: https://www.elastic.co/logstash/
+[lager_logstash]: https://github.com/rpt/lager_logstash.git
