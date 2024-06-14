@@ -84,7 +84,7 @@ meta(K, V, A) -> A#{K => value(V)}.
 
 -spec value(term()) -> value().
 value(undefined) -> null;
-value(V) when is_number(V); is_boolean(V); is_atom(V); is_binary(V) -> V;
+value(V) when is_atom(V); is_binary(V); is_number(V) -> V;
 value(P) when is_pid(P) -> list_to_binary(pid_to_list(P));
 value(P) when is_port(P) -> list_to_binary(port_to_list(P));
 value(R) when is_reference(R) -> list_to_binary(ref_to_list(R));
