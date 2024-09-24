@@ -71,7 +71,12 @@ msg({report, Report}, _) ->
     {F, A} = logger:format_report(Report),
     re:replace(io_lib:format(F, A), <<",?\r?\n *">>, ", ", [global, unicode]);
 msg({string, D}, _) -> D;
-msg({F, A}, _) -> io_lib:format(F, A).
+msg({F, A}, _) ->
+    try
+        io_lib:format(F, A)
+    catch
+        _:_ -> io_lib:format("FORMAT ERROR: ~tp - ~tp", [F, A])
+    end.
 
 -spec meta(Meta::logger:metadata()) -> data().
 meta(Meta) -> maps:fold(fun meta/3, #{}, Meta).
