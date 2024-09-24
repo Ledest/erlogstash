@@ -24,7 +24,7 @@ format(#{level := Level, msg := Msg, meta := #{time := T} = Meta}, Config) ->
     #{timestamp := Timestamp, format := Format} = maps:merge(?DEFAULT_CONFIG, Config),
     M = add_count(meta(add_tags(Meta, Config)), Config),
     encode(M#{level => Level, type => erlogstash, '@timestamp' => timestamp(T, Timestamp), node => node(),
-              message => unicode:characters_to_binary(msg(Msg, Meta))},
+              message => unicode:characters_to_binary(string:trim(msg(Msg, Meta)))},
            Format).
 
 %% internal functions
@@ -69,7 +69,7 @@ msg({report, Report}, #{report_cb := Fun}) when is_function(Fun, 1) ->
     io_lib:format(F, A);
 msg({report, Report}, _) ->
     {F, A} = logger:format_report(Report),
-    string:trim(re:replace(io_lib:format(F, A), <<",?\r?\n *">>, ", ", [global, unicode]), leading);
+    re:replace(io_lib:format(F, A), <<",?\r?\n *">>, ", ", [global, unicode]);
 msg({string, D}, _) -> D;
 msg({F, A}, _) -> io_lib:format(F, A).
 
