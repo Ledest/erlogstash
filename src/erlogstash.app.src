@@ -1,6 +1,6 @@
 {application, erlogstash,
  [{description, "Logstash client and logger handler"},
-  {vsn, "0.10.6"},
+  {vsn, "0.10.7"},
   {registered, [erlogstash_sup]},
   {mod, {erlogstash, []}},
   {applications, [kernel, stdlib,
