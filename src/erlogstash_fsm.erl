@@ -1,11 +1,18 @@
 -module(erlogstash_fsm).
 
 -behaviour(gen_fsm).
+
 -compile({nowarn_deprecated_function, [{gen_fsm, start, 3},
                                        {gen_fsm, start_link, 3}, {gen_fsm, start_link, 4},
                                        {gen_fsm, send_all_state_event, 2},
                                        {gen_fsm, send_event, 2},
                                        {gen_fsm, send_event_after, 2}]}).
+
+-ifdef(OTP_RELEASE).
+-if(?OTP_RELEASE >= 21).
+-include_lib("kernel/include/logger.hrl").
+-endif.
+-endif.
 
 %% API
 -export([start/1, start_link/1, start_link/2, stop/1, send/2]).
@@ -13,6 +20,16 @@
 %% gen_fsm callbacks
 -export([init/1, handle_event/3, handle_info/3, handle_sync_event/4, terminate/3,
          connect/2, connect/3, log/2, log/3]).
+
+-ifndef(LOG_ERROR).
+-define(LOG_ERROR(F, A), error_logger:error_msg(F, A)).
+-endif.
+-ifndef(LOG_WARNING).
+-define(LOG_WARNING(F, A), error_logger:warning_msg(F, A)).
+-endif.
+-ifndef(LOG_NOTICE).
+-define(LOG_NOTICE(F, A), error_logger:info_msg(F, A)).
+-endif.
 
 -define(DEFAULT_TIMEOUT, 5000). % milliseconds
 -define(RECONNECT_TIMEOUT, 5). % seconds
@@ -65,7 +82,7 @@ init(Output) ->
                     when StateName::atom(), StateData::state_data().
 handle_event(stop, _, StateData) -> {stop, normal, StateData};
 handle_event(Event, StateName, StateData) ->
-    error_logger:warning_msg("Unknown event ~p while in state ~p", [Event, StateName]),
+    ?LOG_WARNING("Unknown event ~p while in state ~p", [Event, StateName]),
     {next_state, StateName, StateData}.
 
 -spec handle_info(Info::term(), StateName::atom(), StateData::state_data()) -> {next_state, atom(), state_data()}.
@@ -73,20 +90,20 @@ handle_info({tcp, S, _Data}, StateName, #state{handle = S} = State) ->
     inet:setopts(S, [{active, once}]),
     {next_state, StateName, State};
 handle_info({tcp_closed, S}, _, #state{handle = S, output = Output}) ->
-    error_logger:error_msg("Connection ~p closed", [Output]),
+    ?LOG_ERROR("Connection ~p closed", [Output]),
     reconnect(?RECONNECT_TIMEOUT, Output),
     {next_state, connect, #pool{}};
 handle_info({udp, S, _IP, _Port, _Data}, StateName, #state{handle = S} = State) ->
     inet:setopts(S, [{active, once}]),
     {next_state, StateName, State};
 handle_info(Info, StateName, StateData) ->
-    error_logger:warning_msg("Unknown info ~p while in state ~p", [Info, StateName]),
+    ?LOG_WARNING("Unknown info ~p while in state ~p", [Info, StateName]),
     {next_state, StateName, StateData}.
 
 -spec handle_sync_event(Event::term(), From::{pid, atom()}, StateName, StateData) -> {next_state, StateName, StateData}
         when StateName::atom(), StateData::state_data().
 handle_sync_event(Event, _From, StateName, StateData) ->
-    error_logger:warning_msg("Unknown sync event ~p while in state ~p", [Event, StateName]),
+    ?LOG_WARNING("Unknown sync event ~p while in state ~p", [Event, StateName]),
     {next_state, StateName, StateData}.
 
 -spec terminate(Reason::normal, atom(), state_data()) -> ok | {error, term()}.
@@ -95,7 +112,7 @@ terminate(_Reason, _, _) -> ok.
 
 -spec connect(Event::term(), Pool::pool()) -> {next_state, atom(), state_data()}.
 connect({log, Payload}, #pool{count = N}) when N >= 500 ->
-    error_logger:warning_msg("Drop ~B log events", [N]),
+    ?LOG_WARNING("Drop ~B log events", [N]),
     ?KEEP_STATE(pool(Payload));
 connect({log, Payload}, #pool{count = N, payload = Payloads}) ->
     ?KEEP_STATE(#pool{count = N + 1, payload = [Payload|Payloads]});
@@ -103,6 +120,7 @@ connect({connect, Output}, Pool) ->
     case connect(Output) of
         {ok, H} ->
             drain(H, Pool#pool.payload, Output),
+            ?LOG_NOTICE("Erlogstash connected ~p", [Output]),
             {next_state, log, #state{handle = H, output = Output}};
         {error, nxdomain} ->
             %% Keep a deliberately long timeout here to avoid thundering herds against the DNS service
@@ -111,7 +129,7 @@ connect({connect, Output}, Pool) ->
         {error, Reason} ->
             %% Unknown errors should output warnings to us
             Reason =/= timeout andalso Reason =/= econnrefused andalso
-                error_logger:error_msg("Trying to connect to logstash had error reason ~p", [Reason]),
+                ?LOG_ERROR("Trying to connect to logstash had error reason ~p", [Reason]),
             reconnect(?RECONNECT_TIMEOUT, Output),
             ?KEEP_STATE(Pool)
     end;
@@ -172,7 +190,7 @@ send_log(Handle, Payload, Output) ->
     case send(Handle, Payload, Output) of
         ok -> ok;
         {error, _} = E ->
-            error_logger:error_msg("Send ~p: ~p", [Output, E]),
+            ?LOG_ERROR("Send ~p: ~p", [Output, E]),
             E
     end.
 
@@ -180,7 +198,7 @@ send_log(Handle, Payload, Output) ->
 send(Handle, Payload, {tcp, _, _, _}) -> gen_tcp:send(Handle, Payload);
 send(Handle, Payload, {udp, _, _}) ->
     case gen_udp:send(Handle, Payload) of
-        {error, emsgsize} -> error_logger:error_msg(?MODULE_STRING ": UDP message size ~B", [iolist_size(Payload)]);
+        {error, emsgsize} -> ?LOG_ERROR("UDP message size ~B", [iolist_size(Payload)]);
         R -> R
     end;
 send(Handle, Payload, {file, _}) -> file:write(Handle, Payload).
