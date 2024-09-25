@@ -21,7 +21,7 @@
 %% API
 
 -spec send(Worker::worker(), Payload::payload()) -> ok.
-send(Worker, Payload) -> erlogstash_server:send(Worker, Payload).
+send(Worker, Payload) -> erlogstash_fsm:send(Worker, Payload).
 
 %% @doc
 %% Starts the supervisor
