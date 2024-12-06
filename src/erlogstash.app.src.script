@@ -1,0 +1,12 @@
+{ok, [{application, A, L}]} = file:consult(filename:rootname(SCRIPT, ".script")),
+{_, Apps} = lists:keyfind(applications, 1, L),
+{application, A,
+ try json:module_info(exports) of
+     E ->
+         case lists:member({encode, 1}, E) of
+             true -> lists:keystore(applications, 1, L, {applications, lists:delete(otpbp, Apps)});
+             _false -> L
+         end
+ catch
+     _:_ -> L
+ end}.
