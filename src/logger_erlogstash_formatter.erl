@@ -117,7 +117,9 @@ timestamp(T, iso8601) ->
     list_to_binary(calendar:system_time_to_rfc3339(timestamp(T, unix_ms), [{unit, millisecond}, {offset, "Z"}]));
 timestamp(T, _) -> T.
 
+-ifndef(HAVE_json_encode_1).
 -compile({parse_transform, otpbp_pt}).
+-endif.
 
 -spec encode(Data::data(), Format::format()) -> iodata().
 encode(Data, json) -> json:encode(Data);

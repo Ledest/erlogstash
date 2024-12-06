@@ -1,17 +1,40 @@
+Config = try json:module_info(exports) of
+             E ->
+                 lists:keystore(erl_opts, 1,
+                                case lists:keyfind(deps, 1, CONFIG) of
+                                    {_, D} -> lists:keystore(deps, 1, CONFIG, {deps, proplists:delete(otpbp, D)});
+                                    _ -> CONFIG
+                                end,
+                                {erl_opts,
+                                 case lists:keyfind(erl_opts, 1, CONFIG) of
+                                     {_, O} -> [{d, 'HAVE_json_encode_1'}|O];
+                                     _ -> [{d, 'HAVE_json_encode_1'}]
+                                 end})
+         catch
+             _:_ -> CONFIG
+         end,
 case erlang:function_exported(rebar3, main, 1) of
-    true -> CONFIG;
+    true -> Config;
     false ->
-        case lists:keyfind(deps, 1, CONFIG) of
+        case lists:keyfind(deps, 1, Config) of
             {_, Deps} ->
-                lists:keyreplace(deps, 1, CONFIG,
-                                 {deps, lists:map(fun({otpbp, "~> " ++ V}) ->
-                                                      {otpbp,
-                                                       {git, "https://github.com/Ledest/otpbp.git", {branch, "master"}}};
-                                                     ({emsgpack, "~> " ++ V}) ->
-                                                      {emsgpack,
-                                                       {git, "https://github.com/Ledest/emsgpack", {branch, "master"}}};
-                                                     (D) -> D
-                                                  end, Deps)});
-            _ -> CONFIG
+                lists:keyreplace(deps, 1, Config,
+                                 {deps,
+                                  lists:map(fun(Dep) when Dep =:= otpbp; Dep =:= emsgpack ->
+                                                {Dep,
+                                                 {git,
+                                                  "https://github.com/Ledest/" ++ atom_to_list(Dep) ++".git",
+                                                  {branch, "master"}}};
+                                               ({Dep, V}) when Dep =:= otpbp orelse Dep =:= emsgpack, is_list(V) ->
+                                                {Dep,
+                                                 {git,
+                                                  "https://github.com/Ledest/" ++ atom_to_list(Dep) ++".git",
+                                                  case V of
+                                                      "~> " ++ _ -> {branch, "master"};
+                                                      _ -> {tag, V}
+                                                  end}};
+                                               (Dep) -> Dep
+                                            end, Deps)});
+            _ -> Config
         end
 end.
