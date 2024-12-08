@@ -1,10 +1,6 @@
 Config = try json:module_info(exports) of
              E ->
-                 lists:keystore(erl_opts, 1,
-                                case lists:keyfind(deps, 1, CONFIG) of
-                                    {_, D} -> lists:keystore(deps, 1, CONFIG, {deps, proplists:delete(otpbp, D)});
-                                    _ -> CONFIG
-                                end,
+                 lists:keystore(erl_opts, 1, CONFIG,
                                 {erl_opts,
                                  case lists:keyfind(erl_opts, 1, CONFIG) of
                                      {_, O} -> [{d, 'HAVE_json_encode_1'}|O];
