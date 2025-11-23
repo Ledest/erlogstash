@@ -61,5 +61,6 @@ stop(_) -> ok.
 %% @private
 -spec init([]) -> {ok, {{simple_one_for_one, non_neg_integer(), 1..1000000}, [supervisor:child_spec()]}}.
 init([]) ->
-    {ok, {#{strategy => simple_one_for_one, intensity => 50, period => 3600},
-          [#{id => undefined, start => {erlogstash_server, start_link, []}, restart => transient, shutdown => 2000}]}}.
+    {ok,
+     {#{strategy => simple_one_for_one, intensity => 50, period => 3600},
+      [#{id => undefined, start => {erlogstash_server, start_link, []}, restart => transient, shutdown => 2000}]}}.
