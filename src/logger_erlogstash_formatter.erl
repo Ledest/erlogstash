@@ -116,6 +116,7 @@ timestamp(T, unix) -> erlang:convert_time_unit(T, microsecond, second);
 timestamp(T, iso8601) -> system_time_to_rfc3339(T);
 timestamp(T, _) -> T.
 
+-compile({inline, system_time_to_rfc3339/1}).
 -spec system_time_to_rfc3339(T::pos_integer()) -> binary().
 system_time_to_rfc3339(T) ->
     case calendar:system_time_to_rfc3339(erlang:convert_time_unit(T, microsecond, millisecond),
