@@ -113,9 +113,16 @@ mfa(M, F, A) ->
 -spec timestamp(T::pos_integer(), Format::timestamp_format()) -> binary() | pos_integer().
 timestamp(T, unix_ms) -> erlang:convert_time_unit(T, microsecond, millisecond);
 timestamp(T, unix) -> erlang:convert_time_unit(T, microsecond, second);
-timestamp(T, iso8601) ->
-    list_to_binary(calendar:system_time_to_rfc3339(timestamp(T, unix_ms), [{unit, millisecond}, {offset, "Z"}]));
+timestamp(T, iso8601) -> system_time_to_rfc3339(T);
 timestamp(T, _) -> T.
+
+-spec system_time_to_rfc3339(T::pos_integer()) -> binary().
+system_time_to_rfc3339(T) ->
+    case calendar:system_time_to_rfc3339(erlang:convert_time_unit(T, microsecond, millisecond),
+                                         [{unit, millisecond}, {offset, "Z"}, {return, binary}]) of
+        R when is_binary(R) -> R;
+        R -> list_to_binary(R)
+    end.
 
 -ifndef(HAVE_json_encode_1).
 -compile({parse_transform, otpbp_pt}).
