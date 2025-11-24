@@ -41,6 +41,7 @@ check_config(Config, [{K, L}|T]) ->
     end;
 check_config(_, []) -> ok.
 
+-compile({inline, add_count/2}).
 -spec add_count(M::map(), logger_formatter:config()) -> map().
 add_count(M, #{count := R}) when is_reference(R) ->
     try atomics:add_get(R, 1, 1) of
@@ -50,6 +51,7 @@ add_count(M, #{count := R}) when is_reference(R) ->
     end;
 add_count(M, _) -> M.
 
+-compile({inline, add_tags/2}).
 -spec add_tags(M::map(), logger_formatter:config()) -> map().
 add_tags(M, #{tags := T}) when is_map(T) -> maps:merge(M, T);
 add_tags(M, #{tags := T}) when is_list(T) ->
@@ -75,9 +77,11 @@ msg({F, A}, _) ->
         _:_ -> io_lib:format("FORMAT ERROR: ~tp - ~tp", [F, A])
     end.
 
+-compile({inline, meta/1}).
 -spec meta(Meta::logger:metadata()) -> data().
 meta(Meta) -> maps:fold(fun meta/3, #{}, Meta).
 
+-compile({inline, meta/3}).
 -spec meta(Tag::atom(), V::term(), A::data()) -> data().
 meta(file, V, A) -> A#{file => unicode:characters_to_binary(V)};
 meta(mfa, {M, F, Arity}, A) -> A#{module => M, function => F, arity => Arity, mfa => mfa(M, F, Arity)};
