@@ -130,6 +130,7 @@ terminate(_Reason, #state{handle = Handle, output = Output}) -> close(Handle, Ou
 terminate(_Reason, #pool{}) -> ok.
 
 %% internal functions
+-compile({inline, output/1}).
 -spec output(Output::erlogstash:output()) -> {ok, erlogstash:output()} | error.
 output({file, _} = Output) -> {ok, Output};
 output({udp, _, _} = Output) -> {ok, Output};
@@ -143,6 +144,7 @@ reconnect(Output) -> self() ! {reconnect, Output}.
 -spec reconnect(T::pos_integer(), Output::erlogstash:output()) -> reference().
 reconnect(T, Output) -> send_after(T, {reconnect, Output}).
 
+-compile({inline, send_after/2}).
 -spec send_after(T::pos_integer(), M::term()) -> reference().
 send_after(T, M) -> erlang:send_after(timer:seconds(T), self(), M).
 
